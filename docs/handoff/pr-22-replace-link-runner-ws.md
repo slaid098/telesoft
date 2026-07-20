@@ -106,10 +106,10 @@ client (PR#16), regex-заменяет `pattern` на `new_link` в тексте
 
 ### Шаг 7: Тесты
 
-- `tests/test_link_replacer.py` — 10 тестов: replace_link (basic/multiple/no-match/
+- `tests/test_link_replacer.py` — 11 тестов: replace_link (basic/multiple/no-match/
   invalid-pattern), validate_pattern (valid/invalid), replace_link_in_post
   (success/not-found/no-replacements/edit-fails/empty-text).
-- `tests/test_api_jobs.py` — 14 тестов: replace-link (success/invalid-channel/
+- `tests/test_api_jobs.py` — 15 тестов: replace-link (success/invalid-channel/
   invalid-pattern/invalid-url/url-wrong-channel/requires-auth), list (2 jobs +
   filter-by-channel), get (by-id/not-found), logs (with-logs/not-found),
   cancel (success/already-done), jobs-endpoints-requires-auth.
