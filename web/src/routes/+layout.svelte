@@ -8,7 +8,10 @@ const { data, children } = $props();
 
 type NavItem = { href: string; label: string; icon: string };
 
-const navItems: NavItem[] = [{ href: "/channels", label: "Channels", icon: "📁" }];
+const navItems: NavItem[] = [
+  { href: "/channels", label: "Channels", icon: "📁" },
+  { href: "/jobs", label: "Jobs", icon: "⚙️" },
+];
 
 const isLogin = $derived(page.url.pathname === "/login");
 const username = $derived(data?.user ?? null);

@@ -19,7 +19,9 @@ key_files:
   - web/src/tests/setup.ts — import @testing-library/svelte; afterEach(vi.restoreAllMocks)
   - web/src/tests/LayoutHarness.svelte — обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
   - web/src/tests/login.test.ts — 3 теста: form render, submit+redirect, 401 error
-  - web/src/tests/channels.test.ts — 3 теста: rows render, empty state, delete action
+  - web/src/tests/channels.test.ts — 9 тестов: 3 rows/empty/delete + 3 Add button + 3 ChannelForm
+  - web/src/tests/replace-link.test.ts — 4 теста: disabled, URLs empty, invalid regex, submit+redirect
+  - web/src/tests/jobs.test.ts — 5 тестов: render, cancel, WS progress, WS completed refetch, WS ignore other job_ids
   - web/src/tests/layout.test.ts — 3 теста: Channels nav, Logout button, username display
   - web/src/tests/api.test.ts — 2 теста: query serialization, ApiError on non-ok
 dependencies: [backend, frontend]
@@ -74,7 +76,9 @@ web/src/tests/
 ├── setup.ts              # import "@testing-library/svelte"; afterEach(vi.restoreAllMocks) — очистка моков между тестами
 ├── LayoutHarness.svelte # обёртка для +layout.svelte (передаёт data prop, рендерит child slot)
 ├── login.test.ts         # 3 теста: form render (username/password fields), submit+redirect (POST /api/auth/login → goto), 401 error display
-├── channels.test.ts      # 3 теста: rows render (title+active badge), empty state ("No channels"), delete action (DELETE /api/channels/{id})
+├── channels.test.ts      # 9 тестов: 3 rows render (title+active badge)/empty state/delete action + 3 Add button (open form/submit+refresh/cancel) + 3 ChannelForm (disabled when empty/enabled when filled/calls onSaved after POST)
+├── replace-link.test.ts  # 4 теста: disabled when empty, disabled when URLs empty, invalid regex error display, parses textarea URLs and submits with correct body + redirects to /jobs/{id}
+├── jobs.test.ts          # 5 тестов: renders header/status/progress/logs, cancel button calls POST /api/jobs/{id}/cancel, WS progress event updates progress, WS completed event refetches logs, WS events for other job_ids ignored
 ├── layout.test.ts        # 3 теста: Channels nav item, Logout button, signed-in username display
 └── api.test.ts           # 2 теста: query serialization (URLSearchParams, undefined пропущен), ApiError on non-ok response
 ```
@@ -87,5 +91,6 @@ web/src/tests/
 - **Mocking через `vi.hoisted` + `vi.mock`** — mock `../lib/api` (api.post/del), `$app/navigation` goto, `$app/state` page
 - **`mockImplementation` для fresh Response** — `vi.fn().mockResolvedValue(response)` возвращает тот же Response → "Body is unusable" на втором вызове. Использовать `mockImplementation(() => Promise.resolve(jsonResponse(...)))` для fresh Response каждый вызов
 - **LayoutHarness.svelte** — обёртка для рендера `+layout.svelte` в тестах (передаёт `data` prop, рендерит child slot через `{@render children()}`)
-- **11 тестов, 4 файла** — login (3), channels (3), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
-- **Vitest НЕ имеет coverage gate** (в отличие от backend pytest `--cov-fail-under=80`). `ws.ts` не покрыт (нет UI-использования пока), `+layout.ts`/`+page.ts` load functions не покрыты (требуют SvelteKit load context)
+- **WebSocket mock pattern** (PR#26, `jobs.test.ts`) — `vi.mock("../lib/ws", ...)` с class mock. `onMessage(handler)` регистрирует handler в `Set<WsMessageHandler>` (НЕ static `vi.fn()`), `emitWsEvent(type, data)` helper дёргает все handlers. `beforeEach` очищает `onMessageHandlers` Set между тестами. `connect()`/`close()` — `vi.fn()` no-op. Позволяет тестировать WS event handling без реального соединения.
+- **26 тестов, 6 файлов** (PR#26, было 11/4) — login (3), channels (9), replace-link (4, новый), jobs (5, новый), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
+- **Vitest НЕ имеет coverage gate** (в отличие от backend pytest `--cov-fail-under=80`). `+page.ts`/`+layout.ts` load functions не покрыты (требуют SvelteKit load context). `ws.ts` покрыт косвенно через mock в `jobs.test.ts`.

@@ -1,15 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGet, mockDel } = vi.hoisted(() => ({
+const { mockGet, mockDel, mockPost } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockDel: vi.fn(),
+  mockPost: vi.fn(),
 }));
 
 vi.mock("../lib/api", () => ({
   api: {
     get: mockGet,
-    post: vi.fn(),
+    post: mockPost,
     put: vi.fn(),
     patch: vi.fn(),
     del: mockDel,
@@ -31,6 +32,7 @@ vi.mock("$app/state", () => ({
   page: { url: new URL("http://localhost/channels"), data: {} },
 }));
 
+import ChannelForm from "../lib/components/ChannelForm.svelte";
 import type { Channel } from "../lib/types";
 import ChannelsPage from "../routes/channels/+page.svelte";
 
@@ -49,6 +51,7 @@ function makeChannel(overrides: Partial<Channel> = {}): Channel {
 beforeEach(() => {
   mockGet.mockReset();
   mockDel.mockReset();
+  mockPost.mockReset();
 });
 
 describe("Channels page", () => {
@@ -81,6 +84,96 @@ describe("Channels page", () => {
 
     await waitFor(() => {
       expect(mockDel).toHaveBeenCalledWith("/api/channels/7");
+    });
+  });
+
+  it("opens Add channel form when Add channel button is clicked", async () => {
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+    const addButton = screen.getByRole("button", { name: /Add channel/i });
+    await fireEvent.click(addButton);
+    expect(screen.getByLabelText(/Telegram ID/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Title/i)).toBeTruthy();
+  });
+
+  it("submits Add channel form and refreshes the list", async () => {
+    const created = makeChannel({ id: 42, title: "fresh" });
+    mockPost.mockResolvedValue(created);
+    mockGet.mockResolvedValue({ channels: [created], total: 1 });
+
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+
+    await fireEvent.click(screen.getByRole("button", { name: /Add channel/i }));
+
+    const tgInput = screen.getByLabelText(/Telegram ID/i);
+    const titleInput = screen.getByLabelText(/Title/i);
+    await fireEvent.input(tgInput, { target: { value: "-1001234567890" } });
+    await fireEvent.input(titleInput, { target: { value: "fresh" } });
+
+    const form = screen.getByRole("button", { name: "Save" }).closest("form");
+    if (!form) throw new Error("form not found");
+    await fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith("/api/channels", {
+        telegram_id: -1001234567890,
+        title: "fresh",
+      });
+    });
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith("/api/channels");
+    });
+  });
+
+  it("hides Add channel form on Cancel", async () => {
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+    await fireEvent.click(screen.getByRole("button", { name: /Add channel/i }));
+    expect(screen.getByLabelText(/Telegram ID/i)).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+    expect(screen.queryByLabelText(/Telegram ID/i)).toBeNull();
+  });
+});
+
+describe("ChannelForm", () => {
+  it("disables Save button when fields are empty", () => {
+    render(ChannelForm, { props: { onSaved: vi.fn(), onCancel: vi.fn() } });
+    const saveButton = screen.getByRole("button", { name: /Save/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it("enables Save when telegram_id and title are filled", async () => {
+    render(ChannelForm, { props: { onSaved: vi.fn(), onCancel: vi.fn() } });
+    await fireEvent.input(screen.getByLabelText(/Telegram ID/i), {
+      target: { value: "-1001234567890" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Title/i), { target: { value: "alpha" } });
+    const saveButton = screen.getByRole("button", { name: /Save/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
+  it("calls onSaved after a successful POST", async () => {
+    const saved: Channel = makeChannel({ id: 99, title: "echo" });
+    mockPost.mockResolvedValue(saved);
+    const onSaved = vi.fn();
+
+    render(ChannelForm, { props: { onSaved, onCancel: vi.fn() } });
+    await fireEvent.input(screen.getByLabelText(/Telegram ID/i), {
+      target: { value: "-1001234567890" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Title/i), { target: { value: "echo" } });
+
+    const form = screen.getByRole("button", { name: "Save" }).closest("form");
+    if (!form) throw new Error("form not found");
+    await fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith("/api/channels", {
+        telegram_id: -1001234567890,
+        title: "echo",
+      });
+    });
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledWith(saved);
     });
   });
 });

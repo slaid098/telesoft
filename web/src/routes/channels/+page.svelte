@@ -1,5 +1,6 @@
 <script lang="ts">
 import { ApiError, api } from "$lib/api";
+import ChannelForm from "$lib/components/ChannelForm.svelte";
 import type { Channel } from "$lib/types";
 
 type Props = { data: { channels: Channel[]; total: number } };
@@ -8,6 +9,7 @@ const { data }: Props = $props();
 let error = $state<string | null>(null);
 let busy = $state(false);
 let localRefresh = $state<Channel[] | null>(null);
+let showForm = $state(false);
 
 const channels = $derived.by<Channel[]>(() => localRefresh ?? data.channels);
 
@@ -22,12 +24,20 @@ async function reload() {
 
 async function deleteChannel(channel: Channel) {
   if (!confirm(`Delete channel "${channel.title}"?`)) return;
+  busy = true;
   try {
     await api.del(`/api/channels/${channel.id}`);
     await reload();
   } catch (err) {
     error = err instanceof ApiError ? err.message : "Delete failed";
+  } finally {
+    busy = false;
   }
+}
+
+function handleSaved(_channel: Channel) {
+  showForm = false;
+  void reload();
 }
 </script>
 
@@ -36,13 +46,18 @@ async function deleteChannel(channel: Channel) {
     <h1 class="text-2xl font-semibold text-white">Channels</h1>
     <button
       type="button"
-      disabled
-      class="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white opacity-60"
-      title="Add channel form is coming in a follow-up issue"
+      onclick={() => (showForm = !showForm)}
+      class="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700"
     >
-      Add channel
+      {showForm ? "Close" : "Add channel"}
     </button>
   </div>
+
+  {#if showForm}
+    <div class="rounded-lg border border-slate-800 bg-slate-900 p-4">
+      <ChannelForm onSaved={handleSaved} onCancel={() => (showForm = false)} />
+    </div>
+  {/if}
 
   {#if error}
     <div class="rounded-md border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-200">
@@ -64,7 +79,9 @@ async function deleteChannel(channel: Channel) {
       <tbody class="divide-y divide-slate-800">
         {#each channels as ch (ch.id)}
           <tr class="hover:bg-slate-800/40">
-            <td class="px-3 py-2 font-medium text-white">{ch.title}</td>
+            <td class="px-3 py-2 font-medium text-white">
+              <a href={`/channels/${ch.id}`} class="hover:text-brand-400">{ch.title}</a>
+            </td>
             <td class="px-3 py-2 text-slate-300">{ch.telegram_id}</td>
             <td class="px-3 py-2 text-slate-300">{ch.username ?? "—"}</td>
             <td class="px-3 py-2">
@@ -89,7 +106,7 @@ async function deleteChannel(channel: Channel) {
               </button>
             </td>
           </tr>
-          {:else}
+        {:else}
           <tr>
             <td colspan="5" class="px-3 py-8 text-center text-slate-400">No channels</td>
           </tr>

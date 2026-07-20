@@ -79,12 +79,24 @@ export type ReplaceLinkRequest = {
   new_link: string;
 };
 
+export type WsEventType = "job_started" | "progress" | "completed" | "failed" | "cancelled";
+
 export type WsEvent = {
-  type: "job_started" | "progress" | "completed" | "failed" | "cancelled";
+  type: WsEventType;
   job_id: number;
   edited?: number;
   failed?: number;
   total?: number;
   message_id?: number;
   error?: string;
+};
+
+export type WsEventPayload = {
+  job_id?: number;
+  edited?: number;
+  failed?: number;
+  total?: number;
+  message_id?: number;
+  error?: string;
+  status?: string;
 };
