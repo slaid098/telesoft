@@ -1,12 +1,12 @@
 ---
-pr: XXX
+pr: 22
 issue: 21
 branch: feat/jobs/replace-link-runner-ws
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #XXX: replace-link endpoint with background runner and websocket
+# Handoff — PR #22: replace-link endpoint with background runner and websocket
 
 ## Что сделано
 

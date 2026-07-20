@@ -1,12 +1,12 @@
 ---
 status: Accepted
 date: 2026-07-20
-pr: XXX
+pr: 22
 issue: 21
 title: Background replace-link runner with EventBus, WebSocket, by-ID fetch and regex substitution
 ---
 
-# ADR — PR #XXX: replace-link runner + WS
+# ADR — PR #22: replace-link runner + WS
 
 ## Контекст
 
