@@ -1,4 +1,4 @@
-# ADR — PR #<PR-NUMBER>: mobile responsive layout — bottom nav, touch targets, cards
+# ADR — PR #38: mobile responsive layout — bottom nav, touch targets, cards
 
 ## Статус
 

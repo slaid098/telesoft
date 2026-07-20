@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 38
 issue: 37
 branch: fix/web/mobile-responsive
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: mobile responsive layout — bottom nav, touch targets, cards
+# Handoff — PR #38: mobile responsive layout — bottom nav, touch targets, cards
 
 ## Что сделано
 
