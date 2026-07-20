@@ -67,7 +67,7 @@ function statusClass(status: Job["status"]): string {
         No replace-link jobs yet for this channel
       </div>
     {:else}
-      <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900">
+      <div class="hidden overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
         <table class="min-w-full divide-y divide-slate-800 text-sm">
           <thead class="text-xs text-slate-400">
             <tr>
@@ -98,6 +98,30 @@ function statusClass(status: Job["status"]): string {
             {/each}
           </tbody>
         </table>
+      </div>
+
+      <div class="space-y-3 sm:hidden">
+        {#each recentJobs as job (job.id)}
+          <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+            <div class="flex items-start justify-between gap-2">
+              <a
+                href={`/jobs/${job.id}`}
+                class="font-medium text-white hover:text-brand-400"
+              >
+                #{job.id}
+              </a>
+              <span
+                class={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(
+                  job.status,
+                )}`}
+              >
+                {JOB_STATUS_LABELS[job.status]}
+              </span>
+            </div>
+            <div class="mt-2 text-xs text-slate-300">Progress: {job.edited}/{job.total}</div>
+            <div class="text-xs text-slate-400">{job.created_at}</div>
+          </div>
+        {/each}
       </div>
     {/if}
   </section>

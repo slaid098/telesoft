@@ -159,6 +159,14 @@ async function handleCancel() {
       <span class="text-red-300">{job.failed}</span>
     </div>
 
+    {#if job.status === "done" && job.total === 0}
+      <div
+        class="mt-3 rounded-md border border-amber-900 bg-amber-950 px-3 py-2 text-sm text-amber-200"
+      >
+        No posts matched the pattern. Check if the channel has posts or if your pattern is correct.
+      </div>
+    {/if}
+
     {#if isStoppable}
       <div class="mt-3 flex items-center gap-2">
         <button
