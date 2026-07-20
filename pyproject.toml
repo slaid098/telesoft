@@ -1,0 +1,133 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "telesoft"
+version = "0.1.0"
+description = "Telegram channel post editor — replace links in channel posts via a bot admin"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [{ name = "slaid098" }]
+keywords = ["telegram", "telethon", "fastapi", "editor", "links"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+]
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic[email]>=2.7",
+    "aiosqlite>=0.20",
+    "telethon>=1.36",
+    "python-multipart>=0.0.9",
+    "itsdangerous>=2.1",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "mypy>=1.10",
+    "ruff>=0.5",
+    "pre-commit>=3.7",
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage = "https://github.com/slaid098/telesoft"
+Repository = "https://github.com/slaid098/telesoft"
+Issues = "https://github.com/slaid098/telesoft/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/telesoft"]
+
+# ── Ruff ──────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "SIM", # simplify
+    "C90", # mccabe complexity
+    "PL",  # pylint
+    "RUF", # ruff-specific
+    "S",   # bandit (security)
+    "TRY", # tryceratops (exception handling)
+    "LOG", # flake8-logging
+]
+ignore = [
+    "S101",      # assert in tests
+    "S311",      # pseudo-random for non-crypto use
+    "RUF001",    # ambiguous Cyrillic chars (we write in Russian)
+    "RUF002",    # same for docstrings
+    "RUF003",    # same for comments
+    "TRY003",    # long messages outside exception class
+    "PLR2004",   # magic values in tests
+    "S106",      # hardcoded passwords in tests
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-branches = 12
+max-returns = 5
+max-statements = 50
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLR2004", "S106", "S603", "S607", "S108", "S104", "S105"]
+
+# ── mypy ──────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# ── pytest ────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=telesoft --cov-report=term-missing --cov-fail-under=80"
+
+# ── coverage ──────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["src/telesoft"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
