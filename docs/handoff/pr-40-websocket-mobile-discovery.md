@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 40
 issue: 39
 branch: fix/api-web/websocket-mobile-discovery
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: WebSocket support, mobile bugs, auto-discovery logging
+# Handoff — PR #40: WebSocket support, mobile bugs, auto-discovery logging
 
 ## Что сделано
 

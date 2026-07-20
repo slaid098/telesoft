@@ -1,4 +1,4 @@
-# ADR — PR #<PR-NUMBER>: WebSocket support, mobile bugs, auto-discovery logging
+# ADR — PR #40: WebSocket support, mobile bugs, auto-discovery logging
 
 ## Статус
 
