@@ -16,6 +16,13 @@ def _get_int(name: str, default: int) -> int:
     return int(raw)
 
 
+def _get_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    return float(raw)
+
+
 def _get_str(name: str, default: str) -> str:
     return os.getenv(name, default)
 
@@ -41,6 +48,8 @@ class Settings:
     telegram_bot_token: str
     session_path: str
     jobs_max_concurrency: int
+    max_probe_id: int
+    telegram_request_delay: float
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -58,4 +67,6 @@ class Settings:
             telegram_bot_token=_get_str("TELEGRAM_BOT_TOKEN", ""),
             session_path=_get_str("SESSION_PATH", "app_data/bot.session"),
             jobs_max_concurrency=_get_int("JOBS_MAX_CONCURRENCY", 3),
+            max_probe_id=_get_int("MAX_PROBE_ID", 10000),
+            telegram_request_delay=_get_float("TELEGRAM_REQUEST_DELAY", 1.0),
         )
