@@ -1,4 +1,11 @@
 {
-  "entry": ["src/**/*.svelte", "src/tests/**/*.ts"],
+  "entry": [
+    "src/**/*.svelte",
+    "src/routes/**/+page.ts",
+    "src/routes/**/+layout.ts",
+    "src/lib/api.ts",
+    "src/lib/ws.ts",
+    "src/lib/types.ts"
+  ],
   "project": ["src/**/*.{svelte,ts,js}"]
 }
