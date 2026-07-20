@@ -114,6 +114,7 @@ telesoft/
 - [PR#22 — replace-link runner + WS](../decisions/2026-07-20-pr-22-replace-link-runner-ws.md)
 - [PR#24 — frontend skeleton](../decisions/2026-07-20-pr-24-frontend-skeleton.md)
 - [PR#26 — channels UI](../decisions/2026-07-20-pr-26-channels-ui.md)
+- [PR#28 — finalize README + smoke test](../decisions/2026-07-20-pr-28-finalize-readme.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -126,3 +127,4 @@ telesoft/
 - [PR#22 — replace-link runner + WS](../handoff/pr-22-replace-link-runner-ws.md)
 - [PR#24 — frontend skeleton](../handoff/pr-24-frontend-skeleton.md)
 - [PR#26 — channels UI](../handoff/pr-26-channels-ui.md)
+- [PR#28 — finalize README + smoke test](../handoff/pr-28-finalize-readme.md)
