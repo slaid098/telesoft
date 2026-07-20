@@ -9,10 +9,13 @@ import pytest
 
 from telesoft.core import telegram as telegram_module
 from telesoft.core.link_replacer import (
+    find_posts_with_pattern,
     replace_link,
     replace_link_in_post,
+    replace_link_in_posts,
     validate_pattern,
 )
+from tests.conftest import MockMessage
 
 
 def test_replace_link_basic() -> None:
@@ -146,3 +149,78 @@ async def test_replace_link_in_post_empty_text(
     assert result["success"] is True
     assert result["skipped"] is True
     edit_mock.assert_not_awaited()
+
+
+async def test_find_posts_with_pattern_filters_matching() -> None:
+    """Only messages whose text matches the pattern are returned."""
+    pattern = r"https://old\.example\.com"
+    matching = MockMessage(id=1, text="see https://old.example.com here", chat_id=-100)
+    other = MockMessage(id=2, text="nothing here", chat_id=-100)
+    empty = MockMessage(id=3, text="", chat_id=-100)
+    none_text = MockMessage(id=4, text="", chat_id=-100)
+    none_text.text = None
+
+    result = await find_posts_with_pattern([matching, other, empty, none_text], pattern)
+
+    assert result == [matching]
+
+
+async def test_find_posts_with_pattern_no_matches() -> None:
+    """No matches → empty list (does NOT raise)."""
+    messages = [
+        MockMessage(id=1, text="alpha", chat_id=-100),
+        MockMessage(id=2, text="beta", chat_id=-100),
+    ]
+    result = await find_posts_with_pattern(messages, r"https://old\.example\.com")
+    assert result == []
+
+
+async def test_replace_link_in_posts_summary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Orchestrator returns ``{total, edited, failed, skipped}`` and calls edit per match."""
+    messages = [
+        MockMessage(id=10, text="https://old.example.com a", chat_id=-100),
+        MockMessage(id=11, text="https://old.example.com b", chat_id=-100),
+        MockMessage(id=12, text="no link here", chat_id=-100),
+    ]
+
+    async def _fake_get_message(_chat_id: int, message_id: int) -> MockMessage:
+        return next(m for m in messages if m.id == message_id)
+
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "get_message", AsyncMock(side_effect=_fake_get_message))
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    progress_calls: list[tuple[int, int, int]] = []
+
+    async def _on_progress(edited: int, failed: int, total: int) -> None:
+        progress_calls.append((edited, failed, total))
+
+    summary = await replace_link_in_posts(
+        -100, messages, r"https://old\.example\.com", "https://new.example.com", _on_progress
+    )
+
+    assert summary == {"total": 3, "edited": 2, "failed": 0, "skipped": 1}
+    assert edit_mock.await_count == 2
+    assert len(progress_calls) == 3
+    assert progress_calls[-1] == (2, 0, 3)
+
+
+async def test_replace_link_in_posts_without_progress_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Orchestrator works without an ``on_progress`` callback."""
+    messages = [MockMessage(id=1, text="https://old.example.com", chat_id=-100)]
+    monkeypatch.setattr(
+        telegram_module,
+        "get_message",
+        AsyncMock(return_value=MockMessage(id=1, text="https://old.example.com", chat_id=-100)),
+    )
+    monkeypatch.setattr(telegram_module, "edit_message", AsyncMock(return_value=None))
+
+    summary = await replace_link_in_posts(
+        -100, messages, r"https://old\.example\.com", "https://new.example.com"
+    )
+
+    assert summary == {"total": 1, "edited": 1, "failed": 0, "skipped": 0}

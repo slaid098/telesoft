@@ -209,6 +209,18 @@ def mock_telethon_edit_message(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     return edit_mock
 
 
+@pytest.fixture
+def mock_telethon_get_last_messages(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """Monkeypatch ``core.telegram.get_last_messages`` to an AsyncMock.
+
+    Returns the AsyncMock so individual tests can override the return value
+    (e.g. a list of MockMessages) or assert call args (limit, chat_id).
+    """
+    get_last_mock = AsyncMock(return_value=[])
+    monkeypatch.setattr(telegram_module, "get_last_messages", get_last_mock)
+    return get_last_mock
+
+
 def _install_runner(
     work_fn: Callable[..., Awaitable[None]] | None = None,
 ) -> tuple[JobRunner, EventBus]:

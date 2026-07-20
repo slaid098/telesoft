@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from telesoft.db.models import JobRow, LogRow
 
@@ -14,11 +14,16 @@ def now_iso() -> str:
 
 
 class ReplaceLinkRequest(BaseModel):
-    """Payload for ``POST /api/channels/{id}/replace-link``."""
+    """Payload for ``POST /api/channels/{id}/replace-link``.
 
-    post_urls: list[str]
+    The backend auto-discovers the last ``limit`` channel posts via
+    :func:`telesoft.core.telegram.get_last_messages` and filters them by
+    ``pattern`` — the caller no longer collects post URLs manually.
+    """
+
     pattern: str
     new_link: str
+    limit: int = Field(default=100, ge=1, le=1000)
 
 
 class JobResponse(BaseModel):
