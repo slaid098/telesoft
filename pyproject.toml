@@ -113,6 +113,10 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 
+[[tool.mypy.overrides]]
+module = ["telethon.*"]
+ignore_missing_imports = true
+
 # ── pytest ────────────────────────────────────────────────────────────────
 
 [tool.pytest.ini_options]
