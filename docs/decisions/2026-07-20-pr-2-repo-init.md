@@ -1,4 +1,4 @@
-# ADR — PR #<PR-NUMBER>: repo-init scaffolding
+# ADR — PR #2: repo-init scaffolding
 
 ## Статус
 

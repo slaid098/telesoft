@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 2
 issue: 1
 branch: chore/repo/init-scaffolding
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: repo-init scaffolding
+# Handoff — PR #2: repo-init scaffolding
 
 ## Что сделано
 
