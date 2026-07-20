@@ -7,9 +7,9 @@ authenticated session via ``require_auth`` applied to the whole router via
 Job execution is delegated to a process-wide :class:`telesoft.core.runner.JobRunner`
 instance attached to the FastAPI app state during lifespan startup. The runner
 schedules an :class:`asyncio.Task` per submitted job, gated by a semaphore for
-concurrency control, fetches posts by id via Telethon, regex-replaces the
-pattern with the new link, edits each post, and persists status/progress and
-per-post logs to the database.
+concurrency control, auto-discovers the last N channel posts via Telethon
+(``get_last_messages``), regex-filters by pattern, edits each matching post,
+and persists status/progress and per-post logs to the database.
 """
 
 from __future__ import annotations
@@ -23,7 +23,6 @@ from fastapi import status as http_status
 from telesoft.api.auth import require_auth
 from telesoft.core.link_replacer import validate_pattern
 from telesoft.core.runner import JobRunner
-from telesoft.core.url_parser import parse_post_urls
 from telesoft.db.connection import get_db
 from telesoft.db.models import channel as channel_model
 from telesoft.db.models import job as job_model
@@ -89,16 +88,12 @@ async def replace_link_endpoint(
 ) -> dict[str, Any]:
     """Launch a replace-link job for the given channel.
 
-    Validates the channel, the regex pattern, and each post URL. All parsed
-    message ids must belong to the channel's ``telegram_id``. Creates an
-    ``edit_jobs`` row and submits it to the runner.
+    Validates the channel (404) and the regex pattern (422). The backend auto-
+    discovers the last ``payload.limit`` posts via ``get_last_messages`` and
+    filters them by ``payload.pattern`` — the caller does not collect post URLs.
+    Creates an ``edit_jobs`` row (``status='pending'``, ``total=0`` — updated
+    by the worker once matching posts are known) and submits it to the runner.
     """
-    if not payload.post_urls:
-        raise HTTPException(
-            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="post_urls must not be empty",
-        )
-
     try:
         validate_pattern(payload.pattern)
     except ValueError as exc:
@@ -107,17 +102,8 @@ async def replace_link_endpoint(
             detail=f"Invalid pattern: {exc}",
         ) from exc
 
-    try:
-        parsed = parse_post_urls(payload.post_urls)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
-
     async with get_db() as db:
         channel = await _get_channel_or_404(db, channel_id)
-        chat_id, message_ids = _resolve_chat_and_ids(channel, parsed)
         row = await job_model.create_job(
             db,
             channel_id=channel_id,
@@ -128,42 +114,12 @@ async def replace_link_endpoint(
 
     runner.submit(
         job_id=int(row["id"]),
-        chat_id=chat_id,
-        message_ids=message_ids,
+        chat_id=int(channel["telegram_id"]),
+        limit=payload.limit,
         pattern=payload.pattern,
         new_link=payload.new_link,
     )
     return {"job_id": int(row["id"]), "status": "pending"}
-
-
-def _resolve_chat_and_ids(
-    channel: channel_model.ChannelRow,
-    parsed: list[tuple[str | int, int]],
-) -> tuple[int, list[int]]:
-    """Reconcile parsed post URLs with the channel's telegram identity.
-
-    Raises 422 if any URL belongs to a channel other than the one identified by
-    ``channel_id``. Returns ``(chat_id, message_ids)`` for the runner.
-    """
-    expected_tg_id = int(channel["telegram_id"])
-    expected_username = channel["username"]
-    chat_id = expected_tg_id
-
-    message_ids: list[int] = []
-    for identifier, message_id in parsed:
-        if isinstance(identifier, int):
-            if identifier != expected_tg_id:
-                raise HTTPException(
-                    status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=(f"URL belongs to channel {identifier}, expected {expected_tg_id}"),
-                )
-        elif identifier != expected_username:
-            raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(f"URL belongs to channel @{identifier}, expected @{expected_username}"),
-            )
-        message_ids.append(message_id)
-    return chat_id, message_ids
 
 
 @router.get("/api/jobs", response_model=JobListResponse)
