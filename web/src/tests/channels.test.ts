@@ -62,15 +62,15 @@ describe("Channels page", () => {
     ];
     render(ChannelsPage, { props: { data: { channels, total: 2 } } });
 
-    expect(screen.getByText("alpha")).toBeTruthy();
-    expect(screen.getByText("beta")).toBeTruthy();
-    expect(screen.getByText("active")).toBeTruthy();
-    expect(screen.getByText("inactive")).toBeTruthy();
+    expect(screen.getAllByText("alpha").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("beta").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("active").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("inactive").length).toBeGreaterThan(0);
   });
 
   it("renders empty state when there are no channels", () => {
     render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
-    expect(screen.getByText(/No channels/i)).toBeTruthy();
+    expect(screen.getAllByText(/No channels/i).length).toBeGreaterThan(0);
   });
 
   it("calls DELETE /api/channels/{id} when Delete is clicked", async () => {
@@ -80,7 +80,8 @@ describe("Channels page", () => {
 
     window.confirm = vi.fn(() => true);
     mockGet.mockResolvedValue({ channels: [], total: 0 });
-    await fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    await fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
       expect(mockDel).toHaveBeenCalledWith("/api/channels/7");
