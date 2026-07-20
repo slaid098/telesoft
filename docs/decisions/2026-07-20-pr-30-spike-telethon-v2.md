@@ -1,4 +1,4 @@
-# ADR — PR #<PR-NUMBER>: Spike v2 — channels.GetMessagesRequest raw API for bot-admin
+# ADR — PR #30: Spike v2 — channels.GetMessagesRequest raw API for bot-admin
 
 ## Статус
 

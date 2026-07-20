@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 30
 issue: 29
 branch: spike/telegram/channels-get-messages
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: Spike v2 — channels.GetMessagesRequest raw API for bot-admin
+# Handoff — PR #30: Spike v2 — channels.GetMessagesRequest raw API for bot-admin
 
 ## Что сделано
 
