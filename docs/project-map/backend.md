@@ -119,7 +119,7 @@ src/telesoft/
 - **`WsEvent.from_event`** — `Event.data` — `dict[str, object]`, WsEvent fields — specific (job_id, edited, failed, total, message_id, error). Extra keys → Pydantic v2 ignore (NO `extra="forbid"`). `type` — отдельный positional field, не в data
 - **`edit_jobs` НЕ имеет `error` column** — schema из PR#12 имеет `status`/`total`/`edited`/`failed`/`created_at`/`completed_at`, но НЕТ `error`. Runner НЕ persist'ит error в БД (только в event bus + logger). Если понадобится — миграция в новом PR
 - **`get_runner` dependency** — `getattr(request.app.state, "job_runner")` + `cast("JobRunner", runner)`. 503 если runner не init (defensive, pragma: no cover)
-- **ruff `B008` per-file-ignores** для `src/telesoft/api/routers/*` (Depends в default args). `TRY301` `# noqa` на `raise asyncio.CancelledError` в worker loop (cooperative cancellation, нельзя вынести в helper)
+- **ruff `B008` per-file-ignores** для `src/telesoft/api/routers/*` (Depends в default args). `TRY301` `# noqa` на `raise asyncio.CancelledError` в worker loop (cooperative cancellation, нельзя вынести в helper). Дополнительно: `scripts/*` = [T201, S603, S101, TRY300] (PR#30, spike scripts — см. [scripts.md](scripts.md)), `tests/*` = [S101, PLR2004, S106, S603, S607, S108, S104, S105], `src/telesoft/db/models/*` = [S608] (f-string table names — false positive).
 
 ## Dependencies
 
