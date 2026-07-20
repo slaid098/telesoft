@@ -17,9 +17,10 @@ let saving = $state(false);
 
 const trimmedTitle = $derived(title.trim());
 const trimmedUsername = $derived(username.trim());
-const telegramIdNum = $derived(Number(telegramId));
+const telegramIdStr = $derived(String(telegramId ?? ""));
+const telegramIdNum = $derived(Number(telegramIdStr));
 const hasTelegramId = $derived(
-  telegramId.trim().length > 0 && Number.isFinite(telegramIdNum) && telegramIdNum !== 0,
+  telegramIdStr.trim().length > 0 && Number.isFinite(telegramIdNum) && telegramIdNum !== 0,
 );
 const canSubmit = $derived(trimmedTitle.length > 0 && hasTelegramId && !saving);
 
