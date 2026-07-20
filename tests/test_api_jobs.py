@@ -2,9 +2,10 @@
 ``/api/jobs`` and friends).
 
 Telethon is mocked via ``mock_telethon_get_message`` / ``mock_telethon_edit_message``
-fixtures — no real Telegram calls are made. The :class:`JobRunner` attached to
-``app.state`` runs real code (semaphore + status transitions + log writes), so
-end-to-end behaviour is exercised against the mock Telegram layer.
+/ ``mock_telethon_get_last_messages`` fixtures — no real Telegram calls are made.
+The :class:`JobRunner` attached to ``app.state`` runs real code (semaphore +
+status transitions + log writes), so end-to-end behaviour is exercised against
+the mock Telegram layer.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from telesoft.db import connection
 from telesoft.db.models import job as job_model
 from telesoft.db.models import log as log_model
 from telesoft.main import app
+from tests.conftest import MockMessage
 
 
 @pytest.fixture
@@ -46,28 +48,51 @@ def _create_channel(
     return response.json()
 
 
-def _url_for(channel: dict[str, object], message_id: int) -> str:
-    """Build a t.me post URL matching the channel's username/telegram_id."""
-    username = channel.get("username")
-    if username is not None:
-        return f"https://t.me/{username}/{message_id}"
-    tg_id = int(channel["telegram_id"])  # type: ignore[index]
-    internal = str(abs(tg_id))[len("100") :]
-    return f"https://t.me/c/{internal}/{message_id}"
+def _matching_messages(link: str, count: int) -> list[MockMessage]:
+    r"""Return ``count`` MockMessages whose text contains *link* (plus a non-match).
+
+    *link* is the literal URL string (NOT a regex) — callers pair it with a
+    pattern that matches it (e.g. ``link="https://old.example.com"`` with
+    ``pattern=r"https://old\.example\.com"``).
+    """
+    out: list[MockMessage] = []
+    for i in range(count):
+        out.append(MockMessage(id=100 + i, text=f"see {link} here", chat_id=-1001234567890))
+    out.append(MockMessage(id=999, text="nothing here", chat_id=-1001234567890))
+    return out
+
+
+def _drain_until_settled(client: TestClient, job_id: int, rounds: int = 50) -> dict[str, object]:
+    """Poll the job status until it reaches a terminal state (or rounds run out).
+
+    Each round issues a cheap ``GET /api/jobs/{id}`` plus a ``GET /health`` to
+    pump the asyncio event loop so the background runner task can progress.
+    """
+    body: dict[str, object] = {}
+    for _ in range(rounds):
+        resp = client.get(f"/api/jobs/{job_id}")
+        body = resp.json()
+        if str(body["status"]) in ("done", "failed", "cancelled"):
+            return body
+        client.get("/health")
+    return body
 
 
 def test_replace_link_success(
     authed_client: TestClient,
     mock_telethon_get_message: AsyncMock,
     mock_telethon_edit_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     channel = _create_channel(authed_client, telegram_id=-1001234567890, username="test_channel")
+    pattern = r"https://old\.example\.com"
+    mock_telethon_get_last_messages.return_value = _matching_messages("https://old.example.com", 3)
     response = authed_client.post(
         f"/api/channels/{channel['id']}/replace-link",
         json={
-            "post_urls": [_url_for(channel, 123)],
-            "pattern": r"https://old\.example\.com",
+            "pattern": pattern,
             "new_link": "https://new.example.com",
+            "limit": 100,
         },
     )
     assert response.status_code == 201, response.text
@@ -78,66 +103,74 @@ def test_replace_link_success(
 
 def test_replace_link_invalid_channel(
     authed_client: TestClient,
-    mock_telethon_get_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     response = authed_client.post(
         "/api/channels/9999/replace-link",
         json={
-            "post_urls": ["https://t.me/test_channel/1"],
             "pattern": r"https://x",
             "new_link": "https://new.example.com",
         },
     )
     assert response.status_code == 404
+    mock_telethon_get_last_messages.assert_not_awaited()
 
 
 def test_replace_link_invalid_pattern(
     authed_client: TestClient,
-    mock_telethon_get_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     channel = _create_channel(authed_client)
     response = authed_client.post(
         f"/api/channels/{channel['id']}/replace-link",
         json={
-            "post_urls": [_url_for(channel, 1)],
             "pattern": "[invalid",
             "new_link": "https://new.example.com",
         },
     )
     assert response.status_code == 422
+    mock_telethon_get_last_messages.assert_not_awaited()
 
 
-def test_replace_link_invalid_url(
+def test_replace_link_limit_validation(
     authed_client: TestClient,
-    mock_telethon_get_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     channel = _create_channel(authed_client)
-    response = authed_client.post(
-        f"/api/channels/{channel['id']}/replace-link",
-        json={
-            "post_urls": ["not-a-url"],
-            "pattern": r"https://x",
-            "new_link": "https://new.example.com",
-        },
-    )
-    assert response.status_code == 422
+    endpoint = f"/api/channels/{channel['id']}/replace-link"
+    base_body = {"pattern": r"https://x", "new_link": "https://new.example.com"}
+
+    too_low = authed_client.post(endpoint, json={**base_body, "limit": 0})
+    assert too_low.status_code == 422
+
+    too_high = authed_client.post(endpoint, json={**base_body, "limit": 1001})
+    assert too_high.status_code == 422
+
+    mock_telethon_get_last_messages.return_value = _matching_messages("https://x", 1)
+    ok = authed_client.post(endpoint, json={**base_body, "limit": 100})
+    assert ok.status_code == 201
 
 
-def test_replace_link_url_wrong_channel(
+def test_replace_link_default_limit(
     authed_client: TestClient,
     mock_telethon_get_message: AsyncMock,
+    mock_telethon_edit_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
-    channel = _create_channel(authed_client, telegram_id=-1001234567890, username="test_channel")
-    # URL references a different private channel id
+    channel = _create_channel(authed_client)
+    pattern = r"https://old\.example\.com"
+    mock_telethon_get_last_messages.return_value = _matching_messages("https://old.example.com", 1)
     response = authed_client.post(
         f"/api/channels/{channel['id']}/replace-link",
-        json={
-            "post_urls": ["https://t.me/c/9999999999/1"],
-            "pattern": r"https://x",
-            "new_link": "https://new.example.com",
-        },
+        json={"pattern": pattern, "new_link": "https://new.example.com"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 201
+    job_id = response.json()["job_id"]
+    final = _drain_until_settled(authed_client, int(job_id))
+    assert str(final["status"]) in ("done", "failed"), final
+    mock_telethon_get_last_messages.assert_awaited_once()
+    called_limit = mock_telethon_get_last_messages.await_args.args[1]
+    assert called_limit == 100
 
 
 def test_replace_link_requires_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -149,7 +182,6 @@ def test_replace_link_requires_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         response = unauthed.post(
             "/api/channels/1/replace-link",
             json={
-                "post_urls": ["https://t.me/test_channel/1"],
                 "pattern": r"https://x",
                 "new_link": "https://new.example.com",
             },
@@ -160,7 +192,7 @@ def test_replace_link_requires_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: P
 async def test_list_jobs(
     authed_client: TestClient,
     db_handle: aiosqlite.Connection,
-    mock_telethon_get_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     channel = _create_channel(authed_client)
     channel_id = int(channel["id"])

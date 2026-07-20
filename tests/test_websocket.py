@@ -85,17 +85,24 @@ def test_ws_receives_events(
     ws_client: TestClient,
     mock_telethon_get_message: AsyncMock,
     mock_telethon_edit_message: AsyncMock,
+    mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     """A successful replace-link job emits job_started, progress, completed."""
+    from tests.conftest import MockMessage  # noqa: PLC0415 — local import keeps fixture order
+
     received: list[dict[str, Any]] = []
     channel = _create_channel(ws_client)
+    pattern = r"https://old\.example\.com"
+    mock_telethon_get_last_messages.return_value = [
+        MockMessage(id=1, text="see https://old.example.com here", chat_id=-1001234567890)
+    ]
     with ws_client.websocket_connect("/api/ws") as ws:
         ws_client.post(
             f"/api/channels/{channel['id']}/replace-link",
             json={
-                "post_urls": ["https://t.me/ws_channel/1"],
-                "pattern": r"https://old\.example\.com",
+                "pattern": pattern,
                 "new_link": "https://new.example.com",
+                "limit": 100,
             },
         )
         seen_completed = False

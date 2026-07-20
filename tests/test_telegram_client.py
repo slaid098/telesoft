@@ -175,7 +175,7 @@ async def test_find_max_id_binary_search(
     mock_telethon_client.side_effect = _probe
     monkeypatch.setattr(telegram_module.asyncio, "sleep", AsyncMock())
 
-    max_id = await _find_max_id(channel_input=object(), max_probe_id=10000)
+    max_id = await _find_max_id(channel_input=object(), max_probe_id=10000, delay=0.0)
 
     assert max_id == 1875
 
@@ -187,7 +187,7 @@ async def test_find_max_id_all_empty(
     mock_telethon_client.return_value = mock_channel_messages([None])
     monkeypatch.setattr(telegram_module.asyncio, "sleep", AsyncMock())
 
-    max_id = await _find_max_id(channel_input=object(), max_probe_id=100)
+    max_id = await _find_max_id(channel_input=object(), max_probe_id=100, delay=0.0)
 
     assert max_id == 0
 
@@ -252,14 +252,58 @@ async def test_delay_between_requests(
     monkeypatch: pytest.MonkeyPatch,
     mock_settings: Settings,
 ) -> None:
+    """``_find_max_id`` sleeps *delay* seconds between probes (passed in
+    explicitly — ``Settings.from_env`` is NOT called inside ``_find_max_id``).
+    """
     mock_telethon_client.return_value = mock_channel_messages([None])
     sleep_mock = AsyncMock()
     monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
 
-    await _find_max_id(channel_input=object(), max_probe_id=8)
+    await _find_max_id(
+        channel_input=object(), max_probe_id=8, delay=mock_settings.telegram_request_delay
+    )
 
     delay_calls = [
         c for c in sleep_mock.await_args_list if c.args[0] == mock_settings.telegram_request_delay
     ]
     assert len(delay_calls) >= 1
     assert all(c.args[0] == mock_settings.telegram_request_delay for c in delay_calls)
+
+
+async def test_get_last_messages_reads_settings_once(
+    mock_telethon_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_settings: Settings,
+) -> None:
+    """``get_last_messages`` reads ``Settings.from_env`` exactly once (to thread
+    the delay into ``_find_max_id``) and does NOT re-read per probe.
+
+    ``start_client``/``_get_channel_input`` are stubbed so their own
+    ``Settings.from_env`` calls (for the bot token / api id) don't pollute the
+    count — the test asserts the per-probe reads were eliminated in PR#33.
+    """
+    monkeypatch.setattr(telegram_module, "_get_channel_input", AsyncMock(return_value=object()))
+    monkeypatch.setattr(
+        telegram_module, "start_client", AsyncMock(return_value=mock_telethon_client)
+    )
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
+    from_env_calls = [0]
+
+    original_from_env = Settings.from_env
+
+    def _counting_from_env() -> Settings:
+        from_env_calls[0] += 1
+        return original_from_env()
+
+    monkeypatch.setattr(Settings, "from_env", _counting_from_env)
+
+    mock_telethon_client.return_value = mock_channel_messages([None])
+
+    await get_last_messages(channel_id=-1001234567890, limit=100)
+
+    assert from_env_calls[0] == 1
+    delay_sleeps = [
+        c for c in sleep_mock.await_args_list if c.args[0] == mock_settings.telegram_request_delay
+    ]
+    assert all(c.args[0] == mock_settings.telegram_request_delay for c in delay_sleeps)
