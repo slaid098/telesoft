@@ -13,6 +13,8 @@ from fastapi.testclient import TestClient
 
 from telesoft.config import Settings
 from telesoft.core import telegram as telegram_module
+from telesoft.core.events import EventBus
+from telesoft.core.runner import JobRunner
 from telesoft.db import connection
 from telesoft.db.models import channel as channel_model
 from telesoft.db.models import job as job_model
@@ -37,6 +39,7 @@ def mock_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
         "TELEGRAM_API_HASH",
         "TELEGRAM_BOT_TOKEN",
         "SESSION_PATH",
+        "JOBS_MAX_CONCURRENCY",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -170,3 +173,67 @@ async def mock_telethon_client(
     yield client
     telegram_module._state.client = None
     telegram_module._state.started = False
+
+
+@pytest.fixture
+def mock_telethon_get_message(
+    monkeypatch: pytest.MonkeyPatch, mock_message: MockMessage
+) -> AsyncMock:
+    """Monkeypatch ``core.telegram.get_message`` to return *mock_message* by id.
+
+    Returns the AsyncMock so individual tests can override the return value
+    (e.g. to None for "not found" scenarios) or assert call args.
+    """
+    get_mock = AsyncMock(return_value=mock_message)
+    monkeypatch.setattr(telegram_module, "get_message", get_mock)
+    return get_mock
+
+
+@pytest.fixture
+def mock_telethon_edit_message(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    """Monkeypatch ``core.telegram.edit_message`` to a no-op AsyncMock."""
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+    return edit_mock
+
+
+def _install_runner(
+    work_fn: Callable[..., Awaitable[None]] | None = None,
+) -> tuple[JobRunner, EventBus]:
+    """Replace ``app.state.job_runner`` and ``app.state.event_bus`` for one test."""
+    bus = EventBus()
+    runner = JobRunner(max_concurrency=2, event_bus=bus)
+    runner.start()
+    app.state.job_runner = runner
+    app.state.event_bus = bus
+    return runner, bus
+
+
+def _restore_default_runner() -> JobRunner:
+    """Rebuild a default runner so subsequent fixtures/tests still work."""
+    bus = EventBus()
+    runner = JobRunner(max_concurrency=3, event_bus=bus)
+    runner.start()
+    app.state.job_runner = runner
+    app.state.event_bus = bus
+    return runner
+
+
+@pytest.fixture
+def mock_runner() -> AsyncIterator[JobRunner]:
+    """Replace ``app.state.job_runner`` with an in-memory runner + fresh EventBus.
+
+    The runner is started; the previous state is restored after the test.
+    """
+    prev_runner = getattr(app.state, "job_runner", None)
+    prev_bus = getattr(app.state, "event_bus", None)
+    bus = EventBus()
+    runner = JobRunner(max_concurrency=2, event_bus=bus)
+    runner.start()
+    app.state.job_runner = runner
+    app.state.event_bus = bus
+    yield runner
+    if prev_runner is not None:
+        app.state.job_runner = prev_runner
+    if prev_bus is not None:
+        app.state.event_bus = prev_bus

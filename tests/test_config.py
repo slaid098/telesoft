@@ -16,6 +16,7 @@ def test_settings_from_env_defaults(monkeypatch) -> None:
         "TELEGRAM_API_HASH",
         "TELEGRAM_BOT_TOKEN",
         "SESSION_PATH",
+        "JOBS_MAX_CONCURRENCY",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -31,6 +32,7 @@ def test_settings_from_env_defaults(monkeypatch) -> None:
     assert settings.telegram_api_hash == ""
     assert settings.telegram_bot_token == ""
     assert settings.session_path == "app_data/bot.session"
+    assert settings.jobs_max_concurrency == 3
 
 
 def test_settings_from_env_custom(monkeypatch) -> None:
@@ -45,6 +47,7 @@ def test_settings_from_env_custom(monkeypatch) -> None:
     monkeypatch.setenv("TELEGRAM_API_HASH", "hash123")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "tok:abc")
     monkeypatch.setenv("SESSION_PATH", "/data/session")
+    monkeypatch.setenv("JOBS_MAX_CONCURRENCY", "5")
 
     settings = Settings.from_env()
     assert settings.admin_username == "root"
@@ -58,6 +61,7 @@ def test_settings_from_env_custom(monkeypatch) -> None:
     assert settings.telegram_api_hash == "hash123"
     assert settings.telegram_bot_token == "tok:abc"
     assert settings.session_path == "/data/session"
+    assert settings.jobs_max_concurrency == 5
 
 
 def test_settings_is_frozen() -> None:
@@ -73,6 +77,7 @@ def test_settings_is_frozen() -> None:
         telegram_api_hash="",
         telegram_bot_token="",
         session_path="sess",
+        jobs_max_concurrency=3,
     )
     try:
         settings.host = "x"  # type: ignore[misc]

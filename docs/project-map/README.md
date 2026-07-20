@@ -49,11 +49,11 @@ telesoft/
 
 ## Module index
 
-- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend)
+- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,ws}}, schemas/{auth,channel,job})
 - [frontend.md](frontend.md) — `web/` (SvelteKit frontend)
 - [docker.md](docker.md) — `docker-compose.yml`, `Dockerfile.api`, `Dockerfile.web`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
-- [tests.md](tests.md) — `tests/`, `web/src/tests/`
+- [tests.md](tests.md) — `tests/` (backend unit tests, 101 total), `web/src/tests/`
 - [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC scripts, НЕ часть backend)
 
 ## Patterns

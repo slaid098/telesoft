@@ -40,6 +40,7 @@ class Settings:
     telegram_api_hash: str
     telegram_bot_token: str
     session_path: str
+    jobs_max_concurrency: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -56,4 +57,5 @@ class Settings:
             telegram_api_hash=_get_str("TELEGRAM_API_HASH", ""),
             telegram_bot_token=_get_str("TELEGRAM_BOT_TOKEN", ""),
             session_path=_get_str("SESSION_PATH", "app_data/bot.session"),
+            jobs_max_concurrency=_get_int("JOBS_MAX_CONCURRENCY", 3),
         )

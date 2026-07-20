@@ -6,6 +6,7 @@ stored in a signed cookie managed by Starlette ``SessionMiddleware``.
 """
 
 import secrets
+from typing import Any
 
 from fastapi import HTTPException, Request, status
 
@@ -47,3 +48,16 @@ async def require_auth(request: Request) -> str:
             detail="Not authenticated",
         )
     return user
+
+
+def ws_current_user(websocket: Any) -> str | None:
+    """Read the current user from a WebSocket's session cookie.
+
+    Works for any ASGI WebSocket exposing ``.scope["session"]`` (set by
+    Starlette ``SessionMiddleware``). Returns the username or ``None``.
+    """
+    session = websocket.scope.get("session", {})
+    user = session.get(_SESSION_KEY)
+    if isinstance(user, str):
+        return user
+    return None

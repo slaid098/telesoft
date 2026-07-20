@@ -99,6 +99,7 @@ max-statements = 50
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "PLR2004", "S106", "S603", "S607", "S108", "S104", "S105"]
 "src/telesoft/db/models/*" = ["S608"]
+"src/telesoft/api/routers/*" = ["B008"]
 
 # ── mypy ──────────────────────────────────────────────────────────────────
 
