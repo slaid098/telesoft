@@ -38,9 +38,9 @@ def mock_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     ):
         monkeypatch.delenv(var, raising=False)
 
-    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-at-least-32-chars-long-for-testing")
     monkeypatch.setenv("ADMIN_USERNAME", "admin")
-    monkeypatch.setenv("ADMIN_PASSWORD", "secret123")
+    monkeypatch.setenv("ADMIN_PASSWORD", "secret")
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "test-hash")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
