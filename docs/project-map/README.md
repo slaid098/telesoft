@@ -29,6 +29,7 @@ telesoft/
 ├── src/telesoft/      # Backend (FastAPI) — см. backend.md
 ├── tests/             # Backend unit tests — см. tests.md
 ├── web/               # SvelteKit frontend — см. frontend.md
+├── scripts/           # Standalone spike/PoC scripts — см. scripts.md
 ├── app_data/          # Runtime storage (gitignored except .gitkeep)
 ├── docs/              # Project map, handoffs, ADRs
 │   ├── project-map/   # Структура проекта (этот файл)
@@ -53,6 +54,7 @@ telesoft/
 - [docker.md](docker.md) — `docker-compose.yml`, `Dockerfile.api`, `Dockerfile.web`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
 - [tests.md](tests.md) — `tests/`, `web/src/tests/`
+- [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC scripts, НЕ часть backend)
 
 ## Patterns
 

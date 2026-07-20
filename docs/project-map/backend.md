@@ -17,6 +17,8 @@ last_updated: 2026-07-20
 
 # backend — src/telesoft/
 
+> **Note:** `scripts/` (standalone spike/PoC скрипты) — отдельный модуль, НЕ часть `src/telesoft/`. См. [scripts.md](scripts.md).
+
 ## Structure
 
 ```
