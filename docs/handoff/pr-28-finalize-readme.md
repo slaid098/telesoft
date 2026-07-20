@@ -1,12 +1,12 @@
 ---
-pr: __PR_NUMBER__
+pr: 28
 issue: 27
 branch: docs/repo/finalize-readme
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #__PR_NUMBER__: Finalize README and add end-to-end docker-compose smoke test
+# Handoff — PR #28: Finalize README and add end-to-end docker-compose smoke test
 
 ## Что сделано
 

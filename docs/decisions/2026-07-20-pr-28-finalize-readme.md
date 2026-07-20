@@ -1,4 +1,4 @@
-# ADR — PR #__PR_NUMBER__: Finalize README and add end-to-end docker-compose smoke test
+# ADR — PR #28: Finalize README and add end-to-end docker-compose smoke test
 
 ## Статус
 
@@ -85,7 +85,7 @@ telesoft — Telegram channel post editor (MVP). После PR#2-26: backend (au
 
 ### Handoff/ADR: placeholder для PR number
 
-- Handoff файл: `docs/handoff/pr-__PR_NUMBER__-finalize-readme.md`. ADR файл: `docs/decisions/2026-07-20-pr-__PR_NUMBER__-finalize-readme.md`. После PR create, placeholder `__PR_NUMBER__` заменяется на реальный номер в обоих файлах + в handoff frontmatter `pr: __PR_NUMBER__`, отдельный коммит `docs(handoff): set PR number`.
+- Handoff файл: `docs/handoff/pr-28-finalize-readme.md`. ADR файл: `docs/decisions/2026-07-20-pr-28-finalize-readme.md`. После PR create, placeholder `__PR_NUMBER__` был заменён на реальный номер `28` в обоих файлах + в handoff frontmatter `pr: 28`, отдельный коммит `docs(handoff): set PR number`.
 - **Почему placeholder**: handoff/ADR создаются до PR create (нужны в branch). PR number известен только после `gh pr create`. Pattern: write with placeholder → push → create PR → get number → sed replace → amend-or-new-commit → push. Используем new commit (не amend — explicit history).
 - **Альтернатива**: создать PR без handoff, потом commit handoff с реальным номером. Но тогда первый push не имеет handoff (CI/docs-reviewer не видит). Placeholder + fix commit — компромисс.
 
