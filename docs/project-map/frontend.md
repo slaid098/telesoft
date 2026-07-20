@@ -10,9 +10,9 @@ key_files:
   - web/knip.json — dead code detection entry points (lib + routes + tests)
   - web/src/lib/api.ts — fetch wrapper (credentials:include, 401→goto login, ApiError)
   - web/src/lib/ws.ts — WebSocket client (auto-reconnect, heartbeat, cookie auth)
-  - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent/WsEventType/WsEventPayload)
+  - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent/WsEventType/WsEventPayload/ReplaceLinkRequest)
   - web/src/lib/components/ChannelForm.svelte — add channel form (Svelte 5 runes, $state/$derived canSubmit)
-  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (textarea URLs, regex validation, $effect)
+  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (limit number input 1..1000, regex validation, $effect; PR#36 убрал textarea URLs)
   - web/src/routes/+layout.svelte — app shell (sidebar Channels+Jobs nav, header, mobile nav)
   - web/src/routes/+layout.ts — LayoutLoad auth guard (GET /api/auth/me, 401→redirect)
   - web/src/routes/+page.ts — root redirect → /channels
@@ -27,7 +27,7 @@ key_files:
   - web/src/routes/jobs/[id]/+page.ts — PageLoad GET /api/jobs/{id} + logs, 404→redirect
   - web/Dockerfile.web — multi-stage build → adapter-node runtime
 dependencies: [backend]
-last_updated: 2026-07-20
+last_updated: 2026-07-20 (PR#36)
 ---
 
 # frontend — web/
@@ -56,10 +56,10 @@ web/
     ├── lib/
     │   ├── api.ts        # fetch wrapper: credentials:include, ApiError, 401→goto login, api={get,post,put,patch,del}
     │   ├── ws.ts         # WebSocketClient: auto-reconnect (1s→30s backoff), heartbeat (25s/30s), cookie auth
-    │   ├── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, WsEventType, WsEventPayload, JobStatus, ReplaceLinkRequest
+    │   ├── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, WsEventType, WsEventPayload, JobStatus, ReplaceLinkRequest={pattern, new_link, limit} (PR#36 — post_urls убран)
     │   └── components/
     │       ├── ChannelForm.svelte      # add channel form: $state telegramId/title/username, $derived canSubmit, POST /api/channels → onSaved(channel)
-    │       └── ReplaceLinkForm.svelte  # replace-link form: $state postUrls/pattern/newLink, $effect regex validation (try new RegExp), textarea→array URL parsing, POST /api/channels/{id}/replace-link → goto /jobs/{id}
+    │       └── ReplaceLinkForm.svelte  # replace-link form (PR#36): $state pattern/newLink/limit(default 100), $derived limitValid (1..1000) + canSubmit, $effect regex validation (try new RegExp), number input (min 1, max 1000, step 1) вместо textarea URLs, POST /api/channels/{id}/replace-link с body {pattern, new_link, limit} → goto /jobs/{id}
     ├── routes/
     │   ├── +layout.svelte  # app shell: sidebar (Channels + Jobs nav, active state via page.url.pathname.startsWith), header (username), mobile bottom nav; Svelte 5 runes
     │   ├── +layout.ts     # LayoutLoad auth guard: GET /api/auth/me, 401→redirect(303,/login?redirectTo=...); prerender=false, ssr=false
@@ -84,7 +84,7 @@ web/
         ├── LayoutHarness.svelte  # обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
         ├── login.test.ts         # 3 теста: form render, submit+redirect, 401 error
         ├── channels.test.ts      # 9 тестов: 3 rows/empty/delete + 3 Add button (open/submit+refresh/cancel) + 3 ChannelForm (disabled/enabled/onSaved)
-        ├── replace-link.test.ts  # 4 теста: disabled when empty, URLs empty, invalid regex error, parses textarea+submits+redirects
+        ├── replace-link.test.ts  # 6 тестов PR#36: disabled when empty, disabled when pattern empty, invalid regex error, disabled when limit out of range (0/1001), default limit 100, submits with {pattern, new_link, limit}+redirects
         ├── jobs.test.ts          # 5 тестов: render header/status/progress/logs, cancel POST, WS progress updates, WS completed refetches logs, WS ignores other job_ids
         ├── layout.test.ts        # 3 теста: Channels nav, Logout button, username display
         └── api.test.ts           # 2 теста: query serialization, ApiError on non-ok
@@ -103,13 +103,14 @@ web/
 - **Auth guard в layout load** — `GET /api/auth/me` на каждом маршруте (кроме PUBLIC_PATHS), 401 → `redirect(303, /login?redirectTo=...)`. Дополнительно api.ts `request()` на 401 → `goto(/login?redirectTo=...)` для fetch после load
 - **WebSocket cookie auth** — browser автоматически шлёт session cookie при WS handshake (same-origin), сервер читает `websocket.scope["session"]` (PR#22 `ws_current_user`)
 - **API wrapper** — `api = { get, post, put, patch, del }` с `ApiError` class (status + detail), `buildUrl` для query params (пропускает undefined/null)
-- **TS types mirroring backend Pydantic** — `Channel`/`Job`/`Log`/`WsEvent`/`JobStatus`/`ReplaceLinkRequest` (PR#20/22). `JobStatus="done"` (не "completed"), `WsEvent` flat structure (не `{type, data}`), `MeResponse={user: string}` (не `{username}`)
+- **TS types mirroring backend Pydantic** — `Channel`/`Job`/`Log`/`WsEvent`/`JobStatus`/`ReplaceLinkRequest` (PR#20/22/36). `ReplaceLinkRequest={pattern, new_link, limit: number}` (PR#36 — `post_urls` убран, mirrors backend `src/telesoft/schemas/job.py` PR#34). `JobStatus="done"` (не "completed"), `WsEvent` flat structure (не `{type, data}`), `MeResponse={user: string}` (не `{username}`)
 - **`$derived.by` для merge load+localRefresh** — паттерн из media-gen для избежания `state_referenced_locally` warning (Svelte 5 advice)
 - **Layout + login в одном коммите** — `page.url.pathname === "/login"` требует существования `/login` маршрута (SvelteKit типобезопасное сравнение, иначе ts error)
 - **Svelte 5 runes в forms** (PR#26) — `$state` для form fields, `$derived` для `canSubmit`/`parsedUrls`/`trimmedPattern`/`progressPct`, `$effect` для side-effects (regex validation обновляет `patternError`, auto-refresh `setInterval` с cleanup). `bind:value` для двусторонней связи. НЕ Svelte 4 `export let`/`$:`/`on:click`.
 - **WebSocket realtime в job detail** (PR#26) — `onMount` → `new WebSocketClient()` → `onMessage(handleWsMessage)` → `connect()`, `onDestroy` → `close()`. Per-page client (не shared в layout) — упрощает lifecycle и тестирование. `handleWsMessage` фильтрует по `job_id`, `progress` event → update `job.edited`/`job.failed`/`job.total`, terminal events (`completed`/`failed`/`cancelled`) → update `job.status` + `refetchLogs()`. `WsEventPayload` тип для `msg.data` (wire format `{type, data: {...}}`).
-- **Regex validation client-side** (PR#26) — `ReplaceLinkForm`: `$effect` → `try { new RegExp(trimmedPattern) } catch (err) { patternError = err.message }`. Без external libs (regex-utils/regexpp). Submit блокируется если `patternError !== null`. Server-side `validate_pattern` (PR#22) — security, client-side — UX (fail-fast).
-- **textarea→array URL parsing** (PR#26) — `postUrls.split("\n").map((u) => u.trim()).filter((u) => u.length > 0)`. Live-обновление "Parsed: N URL(s)". Backend `parse_post_urls` (PR#16) валидирует формат `https://t.me/{channel}/{id}` — client-side формат-валидация не дублируется.
+- **Regex validation client-side** (PR#26, сохранён в PR#36) — `ReplaceLinkForm`: `$effect` → `try { new RegExp(trimmedPattern) } catch (err) { patternError = err.message }`. Без external libs (regex-utils/regexpp). Submit блокируется если `patternError !== null`. Server-side `validate_pattern` (PR#22) — security, client-side — UX (fail-fast).
+- **Limit validation 1..1000** (PR#36) — `ReplaceLinkForm`: `let limit = $state(100)` (default mirrors backend `Field(default=100, ge=1, le=1000)`), `const limitValid = $derived(Number.isFinite(limit) && limit >= 1 && limit <= 1000)`. `<input type="number" min="1" max="1000" step="1" bind:value={limit}>` — `bind:value` на number input возвращает number (PR#26 gotcha — `String()` cast НЕ нужен т.к. limit используется как number). `canSubmit` учитывает `limitValid`. `handleSubmit` error branch: `patternError` → `!limitValid` ("Limit must be between 1 and 1000") → generic "Fill all required fields". Client-side валидация зеркалит backend `Field(ge=1, le=1000)` — UX fail-fast + security (не доверяем клиенту). Submit → `POST /api/channels/{id}/replace-link` с body `{pattern, new_link, limit}` (НЕ post_urls) → `goto("/jobs/{job_id}")`.
+- **textarea URLs убран** (PR#36) — `postUrls` state, `parsedUrls` derived (`split("\n").map(trim).filter(non-empty)`), helper text "Parsed: N URL(s)" удалены. Backend PR#34 auto-discovery через `get_last_messages` (PR#32) заменил ручной сбор URLs — UX-блокер PR#14/PR#22/PR#26 снят (20 каналов × 100 постов = 2000 ручных URL-сборов → 20 запросов с limit).
 - **Auto-refresh polling** (PR#26, jobs list) — `$effect` проверяет `hasRunning`, запускает `setInterval(refresh, 5000)` если true, cleanup в return функции (`clearInterval`). Когда jobs завершаются → effect re-runs → cleanup previous interval. Job detail — WS-only (без polling fallback для MVP).
 - **Nav active state** (PR#26) — `page.url.pathname.startsWith(item.href)` для active class. `navItems` array: Channels + Jobs. Mobile bottom nav автоматически подхватывает тот же array.
 - **`$state` captures initial props** (PR#26) — `let job = $state(data.job)` захватывает initial value из load, не реагирует на изменения `data.job` (intentional для "load once, update via events"). Svelte 5 advice warning `state_referenced_locally` — advisory, не error. Соответствует паттерну media-gen.

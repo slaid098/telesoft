@@ -10,20 +10,15 @@ type Props = {
 
 const { channelId, onSubmit }: Props = $props();
 
-let postUrls = $state("");
 let pattern = $state("");
 let newLink = $state("");
+let limit = $state(100);
 let error = $state<string | null>(null);
 let submitting = $state(false);
 
-const parsedUrls = $derived(
-  postUrls
-    .split("\n")
-    .map((u) => u.trim())
-    .filter((u) => u.length > 0),
-);
 const trimmedPattern = $derived(pattern.trim());
 const trimmedNewLink = $derived(newLink.trim());
+const limitValid = $derived(Number.isFinite(limit) && limit >= 1 && limit <= 1000);
 
 let patternError = $state<string | null>(null);
 $effect(() => {
@@ -41,19 +36,19 @@ $effect(() => {
 
 const canSubmit = $derived(
   !submitting &&
-    parsedUrls.length > 0 &&
     trimmedPattern.length > 0 &&
     patternError === null &&
-    trimmedNewLink.length > 0,
+    trimmedNewLink.length > 0 &&
+    limitValid,
 );
 
 async function handleSubmit(event: Event) {
   event.preventDefault();
   if (!canSubmit) {
-    if (parsedUrls.length === 0) {
-      error = "Enter at least one post URL";
-    } else if (patternError) {
+    if (patternError) {
       error = patternError;
+    } else if (!limitValid) {
+      error = "Limit must be between 1 and 1000";
     } else {
       error = "Fill all required fields";
     }
@@ -63,9 +58,9 @@ async function handleSubmit(event: Event) {
   submitting = true;
   try {
     const payload: ReplaceLinkRequest = {
-      post_urls: parsedUrls,
       pattern: trimmedPattern,
       new_link: trimmedNewLink,
+      limit,
     };
     const result = await api.post<{ job_id: number }>(
       `/api/channels/${channelId}/replace-link`,
@@ -89,22 +84,6 @@ async function handleSubmit(event: Event) {
   <h2 class="text-lg font-semibold text-white">Replace link</h2>
 
   <div>
-    <label for="rl-urls" class="mb-1 block text-xs font-medium text-slate-300">Post URLs</label>
-    <textarea
-      id="rl-urls"
-      rows="4"
-      bind:value={postUrls}
-      placeholder={"https://t.me/channel/123\nhttps://t.me/c/1234567890/456"}
-      class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-      required
-    ></textarea>
-    <p class="mt-1 text-xs text-slate-400">
-      One URL per line — public (https://t.me/channel/123) or private
-      (https://t.me/c/1234567890/456). Parsed: {parsedUrls.length} URL(s).
-    </p>
-  </div>
-
-  <div>
     <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
       Pattern (regex)
     </label>
@@ -119,7 +98,9 @@ async function handleSubmit(event: Event) {
     {#if patternError}
       <p class="mt-1 text-xs text-red-400">Invalid regex: {patternError}</p>
     {:else}
-      <p class="mt-1 text-xs text-slate-400">Regex to search for the old link</p>
+      <p class="mt-1 text-xs text-slate-400">
+        Regex для поиска старой ссылки, напр. https://old\.example\.com
+      </p>
     {/if}
   </div>
 
@@ -135,7 +116,26 @@ async function handleSubmit(event: Event) {
       class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       required
     />
-    <p class="mt-1 text-xs text-slate-400">Replacement text for the matched pattern</p>
+    <p class="mt-1 text-xs text-slate-400">Чем заменить, напр. https://new.example.com</p>
+  </div>
+
+  <div>
+    <label for="rl-limit" class="mb-1 block text-xs font-medium text-slate-300">
+      Limit (last N posts to scan)
+    </label>
+    <input
+      id="rl-limit"
+      type="number"
+      min="1"
+      max="1000"
+      step="1"
+      bind:value={limit}
+      class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+      required
+    />
+    <p class="mt-1 text-xs text-slate-400">
+      Сколько последних постов канала сканировать (1-1000, default 100)
+    </p>
   </div>
 
   {#if error}

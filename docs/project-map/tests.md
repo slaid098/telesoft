@@ -20,12 +20,12 @@ key_files:
   - web/src/tests/LayoutHarness.svelte — обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
   - web/src/tests/login.test.ts — 3 теста: form render, submit+redirect, 401 error
   - web/src/tests/channels.test.ts — 9 тестов: 3 rows/empty/delete + 3 Add button + 3 ChannelForm
-  - web/src/tests/replace-link.test.ts — 4 теста: disabled, URLs empty, invalid regex, submit+redirect
+  - web/src/tests/replace-link.test.ts — 6 тестов PR#36: disabled when empty, disabled when pattern empty, invalid regex error, disabled when limit out of range (0/1001), default limit 100, submits with {pattern, new_link, limit}+redirects
   - web/src/tests/jobs.test.ts — 5 тестов: render, cancel, WS progress, WS completed refetch, WS ignore other job_ids
   - web/src/tests/layout.test.ts — 3 теста: Channels nav, Logout button, username display
   - web/src/tests/api.test.ts — 2 теста: query serialization, ApiError on non-ok
 dependencies: [backend, frontend]
-last_updated: 2026-07-20 (PR#34)
+last_updated: 2026-07-20 (PR#36)
 ---
 
 # tests — backend + frontend
@@ -89,7 +89,7 @@ web/src/tests/
 ├── LayoutHarness.svelte # обёртка для +layout.svelte (передаёт data prop, рендерит child slot)
 ├── login.test.ts         # 3 теста: form render (username/password fields), submit+redirect (POST /api/auth/login → goto), 401 error display
 ├── channels.test.ts      # 9 тестов: 3 rows render (title+active badge)/empty state/delete action + 3 Add button (open form/submit+refresh/cancel) + 3 ChannelForm (disabled when empty/enabled when filled/calls onSaved after POST)
-├── replace-link.test.ts  # 4 теста: disabled when empty, disabled when URLs empty, invalid regex error display, parses textarea URLs and submits with correct body + redirects to /jobs/{id}
+├── replace-link.test.ts  # 6 тестов PR#36: disabled when fields empty, disabled when pattern empty (переименован с "URLs empty"), invalid regex error display, disabled when limit out of range (NEW: limit=0/1001 → disabled), opens form with default limit 100 (NEW: getByLabelText(/Limit/i).value==="100"), submits with {pattern, new_link, limit:100}+redirects to /jobs/{id} (обновлён — body без post_urls). УДАЛЁН "parses textarea URLs into an array and submits" (textarea убран PR#36)
 ├── jobs.test.ts          # 5 тестов: renders header/status/progress/logs, cancel button calls POST /api/jobs/{id}/cancel, WS progress event updates progress, WS completed event refetches logs, WS events for other job_ids ignored
 ├── layout.test.ts        # 3 теста: Channels nav item, Logout button, signed-in username display
 └── api.test.ts           # 2 теста: query serialization (URLSearchParams, undefined пропущен), ApiError on non-ok response
@@ -104,5 +104,5 @@ web/src/tests/
 - **`mockImplementation` для fresh Response** — `vi.fn().mockResolvedValue(response)` возвращает тот же Response → "Body is unusable" на втором вызове. Использовать `mockImplementation(() => Promise.resolve(jsonResponse(...)))` для fresh Response каждый вызов
 - **LayoutHarness.svelte** — обёртка для рендера `+layout.svelte` в тестах (передаёт `data` prop, рендерит child slot через `{@render children()}`)
 - **WebSocket mock pattern** (PR#26, `jobs.test.ts`) — `vi.mock("../lib/ws", ...)` с class mock. `onMessage(handler)` регистрирует handler в `Set<WsMessageHandler>` (НЕ static `vi.fn()`), `emitWsEvent(type, data)` helper дёргает все handlers. `beforeEach` очищает `onMessageHandlers` Set между тестами. `connect()`/`close()` — `vi.fn()` no-op. Позволяет тестировать WS event handling без реального соединения.
-- **26 тестов, 6 файлов** (PR#26, было 11/4) — login (3), channels (9), replace-link (4, новый), jobs (5, новый), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
+- **28 тестов, 6 файлов** (PR#36, было 26/6 в PR#26) — login (3), channels (9), replace-link (6, обновлён PR#36: +2 limit tests, -1 textarea test, 1 переименован), jobs (5), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
 - **Vitest НЕ имеет coverage gate** (в отличие от backend pytest `--cov-fail-under=80`). `+page.ts`/`+layout.ts` load functions не покрыты (требуют SvelteKit load context). `ws.ts` покрыт косвенно через mock в `jobs.test.ts`.

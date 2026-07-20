@@ -45,11 +45,8 @@ describe("ReplaceLinkForm", () => {
     expect(button.disabled).toBe(true);
   });
 
-  it("disables submit when URLs are empty", async () => {
+  it("disables submit when pattern is empty", async () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
-    await fireEvent.input(screen.getByLabelText(/Pattern/i), {
-      target: { value: "https://old\\.example\\.com" },
-    });
     await fireEvent.input(screen.getByLabelText(/New link/i), {
       target: { value: "https://new.example.com" },
     });
@@ -65,13 +62,35 @@ describe("ReplaceLinkForm", () => {
     expect(await screen.findByText(/Invalid regex/i)).toBeTruthy();
   });
 
-  it("parses textarea URLs into an array and submits", async () => {
+  it("disables submit when limit is out of range", async () => {
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+    await fireEvent.input(screen.getByLabelText(/Pattern/i), {
+      target: { value: "https://old\\.example\\.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/New link/i), {
+      target: { value: "https://new.example.com" },
+    });
+
+    const limitInput = screen.getByLabelText(/Limit/i);
+    const button = screen.getByRole("button", { name: /Run replace-link/i }) as HTMLButtonElement;
+
+    await fireEvent.input(limitInput, { target: { value: "0" } });
+    expect(button.disabled).toBe(true);
+
+    await fireEvent.input(limitInput, { target: { value: "1001" } });
+    expect(button.disabled).toBe(true);
+  });
+
+  it("opens form with default limit 100", () => {
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+    const limitInput = screen.getByLabelText(/Limit/i) as HTMLInputElement;
+    expect(limitInput.value).toBe("100");
+  });
+
+  it("submits with pattern, new_link and limit", async () => {
     mockPost.mockResolvedValue({ job_id: 5 });
     render(ReplaceLinkForm, { props: { channelId: 1 } });
 
-    await fireEvent.input(screen.getByLabelText(/Post URLs/i), {
-      target: { value: "https://t.me/a/1\nhttps://t.me/b/2\n\n" },
-    });
     await fireEvent.input(screen.getByLabelText(/Pattern/i), {
       target: { value: "https://old\\.example\\.com" },
     });
@@ -85,9 +104,9 @@ describe("ReplaceLinkForm", () => {
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith("/api/channels/1/replace-link", {
-        post_urls: ["https://t.me/a/1", "https://t.me/b/2"],
         pattern: "https://old\\.example\\.com",
         new_link: "https://new.example.com",
+        limit: 100,
       });
     });
     await waitFor(() => {
