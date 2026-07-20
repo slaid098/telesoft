@@ -5,13 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-
-async def init_db() -> None:
-    pass
-
-
-async def close_db() -> None:
-    pass
+from telesoft.db.connection import close_db, init_db
 
 
 @asynccontextmanager
