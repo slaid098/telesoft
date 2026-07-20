@@ -1,0 +1,4 @@
+{
+  "entry": ["src/**/*.svelte", "src/tests/**/*.ts"],
+  "project": ["src/**/*.{svelte,ts,js}"]
+}
