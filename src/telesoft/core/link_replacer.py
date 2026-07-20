@@ -3,15 +3,21 @@
 Provides:
 - :func:`replace_link` — pure regex substitution returning the new text and the
   number of replacements made.
+- :func:`validate_pattern` — compiles *pattern* to fail fast on invalid regex.
+- :func:`find_posts_with_pattern` — filter a list of messages returned by
+  :func:`telesoft.core.telegram.get_last_messages` down to those matching
+  *pattern*. Does NOT fetch from Telegram.
 - :func:`replace_link_in_post` — fetches a single message by id via the Telethon
   bot client (by-ID only — see ADR 2026-07-20-pr-14-spike-telethon), applies the
   regex, and calls ``edit_message`` when at least one replacement was made.
-- :func:`validate_pattern` — compiles *pattern* to fail fast on invalid regex.
+- :func:`replace_link_in_posts` — orchestrates :func:`replace_link_in_post`
+  over a pre-filtered list of messages and reports a summary dict.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from telesoft.core import telegram as telegram_module
@@ -89,3 +95,47 @@ async def replace_link_in_post(
         "new_text": new_text,
         "replacements": count,
     }
+
+
+async def find_posts_with_pattern(messages: list[Any], pattern: str) -> list[Any]:
+    """Filter *messages* down to those whose text matches *pattern*.
+
+    Works against the list returned by
+    :func:`telesoft.core.telegram.get_last_messages` — does NOT fetch from
+    Telegram. Messages with ``text`` falsy (``None`` / empty) are never
+    matched. Returns the matching messages in their original order.
+    """
+    regex = re.compile(pattern)
+    return [m for m in messages if (getattr(m, "text", None) or "") and regex.search(m.text)]
+
+
+async def replace_link_in_posts(
+    chat_id: int,
+    messages: list[Any],
+    pattern: str,
+    new_link: str,
+    on_progress: Callable[[int, int, int], Awaitable[None]] | None = None,
+) -> dict[str, int]:
+    """Edit every message in *messages* via :func:`replace_link_in_post`.
+
+    Returns a summary ``{"total", "edited", "failed", "skipped"}``. When
+    *on_progress* is supplied it is awaited after each message with the current
+    ``(edited, failed, total)`` counters — used by the runner to push progress
+    events without coupling to the orchestrator's loop.
+    """
+    total = len(messages)
+    edited = 0
+    failed = 0
+    skipped = 0
+    for message in messages:
+        result = await replace_link_in_post(chat_id, int(message.id), pattern, new_link)
+        if result.get("success"):
+            if result.get("edited"):
+                edited += 1
+            else:
+                skipped += 1
+        else:
+            failed += 1
+        if on_progress is not None:
+            await on_progress(edited, failed, total)
+    return {"total": total, "edited": edited, "failed": failed, "skipped": skipped}
