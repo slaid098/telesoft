@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 12
 issue: 11
 branch: feat/db/aiosqlite-models
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR <PR-NUMBER>: aiosqlite layer with channels, edit_jobs, edit_logs models
+# Handoff — PR #12: aiosqlite layer with channels, edit_jobs, edit_logs models
 
 ## Что сделано
 
