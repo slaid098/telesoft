@@ -1,4 +1,4 @@
-# ADR — PR #<PR-NUMBER>: Telethon bot mode PoC on test channel
+# ADR — PR #14: Telethon bot mode PoC on test channel
 
 ## Статус
 

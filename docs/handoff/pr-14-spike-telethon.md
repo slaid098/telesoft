@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 14
 issue: 13
 branch: spike/telegram/telethon-bot-poc
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: Telethon bot mode PoC on test channel
+# Handoff — PR #14: Telethon bot mode PoC on test channel
 
 ## Что сделано
 
