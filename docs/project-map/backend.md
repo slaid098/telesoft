@@ -13,7 +13,9 @@ key_files:
   - src/telesoft/db/models/log.py — CRUD для edit_logs
   - src/telesoft/api/auth.py — auth helpers (verify_credentials/login/logout/current_user/require_auth)
   - src/telesoft/api/routers/auth.py — auth router (POST /api/auth/login, /logout, GET /me)
+  - src/telesoft/api/routers/channels.py — channels router (GET/POST/GET-by-id/PATCH/DELETE under /api/channels, auth on whole router)
   - src/telesoft/schemas/auth.py — Pydantic models (LoginRequest, AuthResponse)
+  - src/telesoft/schemas/channel.py — Pydantic models (ChannelCreate/ChannelUpdate/ChannelResponse/ChannelListResponse) + now_iso() helper
   - src/telesoft/__init__.py — package marker (empty)
   - src/telesoft/py.typed — PEP 561 marker (empty)
 dependencies: []
@@ -30,7 +32,7 @@ last_updated: 2026-07-20
 src/telesoft/
 ├── __init__.py   # Пустой — package marker
 ├── py.typed      # Пустой — PEP 561 marker (типы доступны внешним потребителям)
-├── main.py       # FastAPI app: lifespan (init_db → start_client try/except → yield → stop_client try/except → close_db), SessionMiddleware (signed cookie), include_router(auth_router), GET /health → {"status":"ok"}
+├── main.py       # FastAPI app: lifespan (init_db → start_client try/except → yield → stop_client try/except → close_db), SessionMiddleware (signed cookie), include_router(auth_router + channels_router), GET /health → {"status":"ok"}
 ├── config.py     # Settings frozen dataclass + from_env() classmethod + helpers (_get_int/_get_str/_get_list)
 ├── core/         # Telegram client + URL parser (bot-mode, by-ID fetch only)
 │   ├── __init__.py    # Пустой — package marker
@@ -49,11 +51,13 @@ src/telesoft/
 │   ├── __init__.py    # Пустой — package marker
 │   ├── auth.py        # Auth helpers: verify_credentials (secrets.compare_digest), login/logout/current_user/require_auth (FastAPI Depends)
 │   └── routers/
-│       ├── __init__.py  # Пустой — package marker
-│       └── auth.py      # APIRouter(prefix="/api/auth"): POST /login, POST /logout (auth), GET /me (auth)
+│       ├── __init__.py    # Пустой — package marker
+│       ├── auth.py        # APIRouter(prefix="/api/auth"): POST /login, POST /logout (auth), GET /me (auth)
+│       └── channels.py    # APIRouter(prefix="/api/channels", dependencies=[Depends(require_auth)]): GET "" (list, ?active_only), POST "" (201/409), GET "/{id}" (200/404), PATCH "/{id}" (200/404/422), DELETE "/{id}" (204/404, FK CASCADE)
 └── schemas/      # Pydantic request/response models
     ├── __init__.py  # Пустой — package marker
-    └── auth.py      # LoginRequest(username, password), AuthResponse(status, user)
+    ├── auth.py      # LoginRequest(username, password), AuthResponse(status, user)
+    └── channel.py   # ChannelCreate, ChannelUpdate (@model_validator "хотя бы одно поле"), ChannelResponse (classmethod from_row), ChannelListResponse, now_iso() helper
 ```
 
 ## Patterns
@@ -84,6 +88,14 @@ src/telesoft/
 - **`async def` для всех auth helpers** — `verify_credentials`/`login`/`logout`/`current_user`/`require_auth` все async (консистентность + будущее расширение, напр. БД-lookup)
 - **APIRouter с prefix/tags** — `APIRouter(prefix="/api/auth", tags=["auth"])`. Endpoints: `POST /login`, `POST /logout` (auth), `GET /me` (auth). `GET /health` остаётся public (вне router)
 - **Pydantic schemas** в `schemas/` — `LoginRequest` (request body), `AuthResponse` (response для /login). `/logout` и `/me` возвращают `dict[str, str]` (без `response_model`)
+- **Auth на весь роутер** через `APIRouter(..., dependencies=[Depends(require_auth)])` (channels router) — DRY, нельзя случайно забыть auth на новом эндпоинте. Если нужен public эндпоинт под тем же prefix — выносить в отдельный роутер без `dependencies`
+- **CRUD router pattern** (channels): 5 эндпоинтов поверх DB-моделей (PR#12) через `async with get_db() as db:`. Status codes: 201 (create), 409 (duplicate telegram_id), 404 (not found), 422 (empty PATCH body via Pydantic validator), 204 (delete, FK CASCADE на edit_jobs/edit_logs)
+- **Pydantic `@model_validator(mode="after")`** для "хотя бы одно поле" в `ChannelUpdate` — бросает `ValueError` если все поля `None` → FastAPI автоматически возвращает 422. `mode="after"` (не `"before"`) — корректно работает с `{}` body
+- **`ChannelResponse.from_row` classmethod** — конвертирует dict-like `aiosqlite.Row` в Pydantic model с явными casts (`int()`/`str()`/`bool()`) для SQLite-типов. Идиоматичный Pydantic паттерн (не standalone function)
+- **`now_iso()` helper** в `schemas/channel.py` — `datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")` → `"2026-07-20T12:34:56Z"` (ISO 8601 UTC с trailing `Z`, формат из спеки). НЕ `isoformat()` с `+00:00`
+- **`PATCH` not `PUT`** для partial update — `ChannelUpdate` с all-optional fields + `model_validator` для "хотя бы одно поле". Семантически корректнее для partial (RFC 5789)
+- **`dict[str, str | int | None]` для PATCH fields** — mypy strict требует explicit type для `**fields` в `update_channel(db, channel_id=..., **fields)`. `dict[str, object]` → mypy `arg-type` error
+- **`int(payload.is_active)` cast** в PATCH — SQLite хранит `is_active` как INTEGER (0/1), Pydantic `bool` → Python `True`/`False` → `int()` для совместимости с `str | int | None` типом `update_channel`
 
 ## Dependencies
 

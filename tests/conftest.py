@@ -9,12 +9,14 @@ from unittest.mock import AsyncMock
 
 import aiosqlite
 import pytest
+from fastapi.testclient import TestClient
 
 from telesoft.config import Settings
 from telesoft.core import telegram as telegram_module
 from telesoft.db import connection
 from telesoft.db.models import channel as channel_model
 from telesoft.db.models import job as job_model
+from telesoft.main import app
 
 type ChannelFactory = Callable[..., Awaitable[channel_model.ChannelRow]]
 type JobFactory = Callable[..., Awaitable[job_model.JobRow]]
@@ -56,6 +58,21 @@ async def mock_db(
     db = await connection.init_db()
     yield db
     await connection.close_db()
+
+
+@pytest.fixture
+async def authed_client(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> AsyncIterator[TestClient]:
+    """A TestClient with a logged-in admin session and an isolated temp DB."""
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-at-least-32-chars-long-for-testing")
+    monkeypatch.setenv("ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("ADMIN_PASSWORD", "secret")
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "telesoft.db"))
+    with TestClient(app) as c:
+        resp = c.post("/api/auth/login", json={"username": "admin", "password": "secret"})
+        assert resp.status_code == 200
+        yield c
 
 
 @pytest.fixture
