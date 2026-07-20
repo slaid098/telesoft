@@ -16,8 +16,12 @@ key_files:
   - tests/test_link_replacer.py — link replacer (11 тестов: replace_link basic/multiple/no-match/invalid-pattern, validate_pattern valid/invalid, replace_link_in_post success/not-found/no-replacements/edit-fails/empty-text)
   - tests/test_api_jobs.py — jobs API (15 тестов: replace-link success/invalid-channel/invalid-pattern/invalid-url/url-wrong-channel/requires-auth, list 2-jobs/filter-by-channel, get by-id/not-found, logs with-logs/not-found, cancel success/already-done, jobs-endpoints-requires-auth)
   - tests/test_websocket.py — WebSocket + EventBus + JobRunner (8 тестов: ws-requires-auth, ws-receives-events, ws-disconnect-unsubscribes, ws-publish-event-directly, EventBus subscribe/publish/unsubscribe, EventBus unsubscribe-idempotent, JobRunner start-idempotent, JobRunner cancel-returns-false-for-unknown)
-  - web/src/tests/setup.ts — afterEach restoreAllMocks
-  - web/src/tests/smoke.test.ts — expect(1+1).toBe(2) — гарантирует vitest зелёный
+  - web/src/tests/setup.ts — import @testing-library/svelte; afterEach(vi.restoreAllMocks)
+  - web/src/tests/LayoutHarness.svelte — обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
+  - web/src/tests/login.test.ts — 3 теста: form render, submit+redirect, 401 error
+  - web/src/tests/channels.test.ts — 3 теста: rows render, empty state, delete action
+  - web/src/tests/layout.test.ts — 3 теста: Channels nav, Logout button, username display
+  - web/src/tests/api.test.ts — 2 теста: query serialization, ApiError on non-ok
 dependencies: [backend, frontend]
 last_updated: 2026-07-20
 ---
@@ -67,13 +71,21 @@ tests/
 
 ```
 web/src/tests/
-├── setup.ts          # afterEach(restoreAllMocks) — очистка моков между тестами
-└── smoke.test.ts     # expect(1+1).toBe(2) — минимальный тест (vitest падает без тестовых файлов)
+├── setup.ts              # import "@testing-library/svelte"; afterEach(vi.restoreAllMocks) — очистка моков между тестами
+├── LayoutHarness.svelte # обёртка для +layout.svelte (передаёт data prop, рендерит child slot)
+├── login.test.ts         # 3 теста: form render (username/password fields), submit+redirect (POST /api/auth/login → goto), 401 error display
+├── channels.test.ts      # 3 теста: rows render (title+active badge), empty state ("No channels"), delete action (DELETE /api/channels/{id})
+├── layout.test.ts        # 3 теста: Channels nav item, Logout button, signed-in username display
+└── api.test.ts           # 2 теста: query serialization (URLSearchParams, undefined пропущен), ApiError on non-ok response
 ```
 
 ### Patterns
 
 - **Vitest + jsdom** — DOM-окружение для компонентных тестов
-- **@testing-library/svelte** — рендеринг Svelte-компонентов в тестах
+- **@testing-library/svelte** — рендеринг Svelte-компонентов в тестах (import в setup.ts)
 - **coverage v8** — через @vitest/coverage-v8
-- **Smoke test** — гарантирует, что vitest-инфраструктура работает (без тестовых файлов vitest exit code 1)
+- **Mocking через `vi.hoisted` + `vi.mock`** — mock `../lib/api` (api.post/del), `$app/navigation` goto, `$app/state` page
+- **`mockImplementation` для fresh Response** — `vi.fn().mockResolvedValue(response)` возвращает тот же Response → "Body is unusable" на втором вызове. Использовать `mockImplementation(() => Promise.resolve(jsonResponse(...)))` для fresh Response каждый вызов
+- **LayoutHarness.svelte** — обёртка для рендера `+layout.svelte` в тестах (передаёт `data` prop, рендерит child slot через `{@render children()}`)
+- **11 тестов, 4 файла** — login (3), channels (3), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
+- **Vitest НЕ имеет coverage gate** (в отличие от backend pytest `--cov-fail-under=80`). `ws.ts` не покрыт (нет UI-использования пока), `+layout.ts`/`+page.ts` load functions не покрыты (требуют SvelteKit load context)

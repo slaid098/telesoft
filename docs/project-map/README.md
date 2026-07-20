@@ -50,10 +50,10 @@ telesoft/
 ## Module index
 
 - [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,ws}}, schemas/{auth,channel,job})
-- [frontend.md](frontend.md) — `web/` (SvelteKit frontend)
+- [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts, routes/{+layout,+page,login,channels}, tests)
 - [docker.md](docker.md) — `docker-compose.yml`, `Dockerfile.api`, `Dockerfile.web`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
-- [tests.md](tests.md) — `tests/` (backend unit tests, 101 total), `web/src/tests/`
+- [tests.md](tests.md) — `tests/` (backend unit tests, 101 total), `web/src/tests/` (frontend 11 tests: login 3, channels 3, layout 3, api 2)
 - [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC scripts, НЕ часть backend)
 
 ## Patterns
