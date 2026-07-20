@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: bot-mode Telethon client wrapper
+# ADR — PR #16: bot-mode Telethon client wrapper
 
 ## Статус
 

@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 16
 issue: 15
 branch: feat/telegram/bot-client
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR <PR-NUMBER>: bot-mode Telethon client wrapper
+# Handoff — PR #16: bot-mode Telethon client wrapper
 
 ## Что сделано
 
