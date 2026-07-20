@@ -148,7 +148,7 @@ async function handleSubmit(event: Event) {
     <button
       type="submit"
       disabled={!canSubmit}
-      class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+      class="rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {submitting ? "Starting…" : "Run replace-link"}
     </button>

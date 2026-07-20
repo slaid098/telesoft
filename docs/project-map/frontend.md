@@ -11,23 +11,23 @@ key_files:
   - web/src/lib/api.ts — fetch wrapper (credentials:include, 401→goto login, ApiError)
   - web/src/lib/ws.ts — WebSocket client (auto-reconnect, heartbeat, cookie auth)
   - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent/WsEventType/WsEventPayload/ReplaceLinkRequest)
-  - web/src/lib/components/ChannelForm.svelte — add channel form (Svelte 5 runes, $state/$derived canSubmit)
-  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (limit number input 1..1000, regex validation, $effect; PR#36 убрал textarea URLs)
-  - web/src/routes/+layout.svelte — app shell (sidebar Channels+Jobs nav, header, mobile nav)
+  - web/src/lib/components/ChannelForm.svelte — add channel form (Svelte 5 runes, $state/$derived canSubmit; PR#38 touch target py-2.5)
+  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (limit number input 1..1000, regex validation, $effect; PR#36 убрал textarea URLs; PR#38 touch target py-2.5)
+  - web/src/routes/+layout.svelte — app shell (sidebar Channels+Jobs nav, header, mobile bottom nav grid-cols-2 PR#38)
   - web/src/routes/+layout.ts — LayoutLoad auth guard (GET /api/auth/me, 401→redirect)
   - web/src/routes/+page.ts — root redirect → /channels
   - web/src/routes/login/+page.svelte — login form (Svelte 5 runes)
-  - web/src/routes/channels/+page.svelte — channels table + delete + Add channel button (inline ChannelForm)
+  - web/src/routes/channels/+page.svelte — channels list: dual-layout table (≥640px) + cards (<640px) PR#38, delete, Add channel button (inline ChannelForm)
   - web/src/routes/channels/+page.ts — PageLoad GET /api/channels
   - web/src/routes/channels/[id]/+page.svelte — channel detail (header, ReplaceLinkForm, run history)
   - web/src/routes/channels/[id]/+page.ts — PageLoad GET /api/channels/{id} + recent jobs, 404→redirect
-  - web/src/routes/jobs/+page.svelte — jobs list (table, status filter, auto-refresh 5s)
+  - web/src/routes/jobs/+page.svelte — jobs list: dual-layout table (≥640px) + cards (<640px) PR#38, status filter, auto-refresh 5s
   - web/src/routes/jobs/+page.ts — PageLoad GET /api/jobs + channels lookup
-  - web/src/routes/jobs/[id]/+page.svelte — job detail (progress bar, cancel, logs, WebSocket realtime)
+  - web/src/routes/jobs/[id]/+page.svelte — job detail: dual-layout logs table+cards PR#38, progress bar, cancel (touch target py-2.5 PR#38), WebSocket realtime
   - web/src/routes/jobs/[id]/+page.ts — PageLoad GET /api/jobs/{id} + logs, 404→redirect
   - web/Dockerfile.web — multi-stage build → adapter-node runtime
 dependencies: [backend]
-last_updated: 2026-07-20 (PR#36)
+last_updated: 2026-07-20 (PR#38)
 ---
 
 # frontend — web/
@@ -58,26 +58,26 @@ web/
     │   ├── ws.ts         # WebSocketClient: auto-reconnect (1s→30s backoff), heartbeat (25s/30s), cookie auth
     │   ├── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, WsEventType, WsEventPayload, JobStatus, ReplaceLinkRequest={pattern, new_link, limit} (PR#36 — post_urls убран)
     │   └── components/
-    │       ├── ChannelForm.svelte      # add channel form: $state telegramId/title/username, $derived canSubmit, POST /api/channels → onSaved(channel)
-    │       └── ReplaceLinkForm.svelte  # replace-link form (PR#36): $state pattern/newLink/limit(default 100), $derived limitValid (1..1000) + canSubmit, $effect regex validation (try new RegExp), number input (min 1, max 1000, step 1) вместо textarea URLs, POST /api/channels/{id}/replace-link с body {pattern, new_link, limit} → goto /jobs/{id}
+    │       ├── ChannelForm.svelte      # add channel form: $state telegramId/title/username, $derived canSubmit, POST /api/channels → onSaved(channel); PR#38 primary submit py-2.5 (≥44px touch target)
+    │       └── ReplaceLinkForm.svelte  # replace-link form (PR#36): $state pattern/newLink/limit(default 100), $derived limitValid (1..1000) + canSubmit, $effect regex validation (try new RegExp), number input (min 1, max 1000, step 1) вместо textarea URLs, POST /api/channels/{id}/replace-link с body {pattern, new_link, limit} → goto /jobs/{id}; PR#38 primary submit py-2.5 (≥44px touch target)
     ├── routes/
-    │   ├── +layout.svelte  # app shell: sidebar (Channels + Jobs nav, active state via page.url.pathname.startsWith), header (username), mobile bottom nav; Svelte 5 runes
+    │   ├── +layout.svelte  # app shell: sidebar (Channels + Jobs nav, active state via page.url.pathname.startsWith), header (username), mobile bottom nav (grid-cols-2 PR#38, иконки text-xl, лейблы text-xs, py-3 ≥44px touch target); Svelte 5 runes
     │   ├── +layout.ts     # LayoutLoad auth guard: GET /api/auth/me, 401→redirect(303,/login?redirectTo=...); prerender=false, ssr=false
     │   ├── +page.svelte   # (удалён в PR#24 — root redirect в +page.ts)
     │   ├── +page.ts       # root redirect(307, /channels)
     │   ├── login/
     │   │   └── +page.svelte  # login form: $state username/password/error/loading, $derived canSubmit, POST /api/auth/login
     │   ├── channels/
-    │   │   ├── +page.svelte      # channels table (title/telegram_id/active badge/delete), empty state, Add channel button (toggle inline ChannelForm), row link → /channels/{id}; $derived.by merge load+localRefresh
+    │   │   ├── +page.svelte      # channels list: dual-layout PR#38 — table (hidden sm:block, title/telegram_id/active badge/delete) + cards (sm:hidden, title link + active badge + dl telegram_id/username + delete); empty state, Add channel button (toggle inline ChannelForm), row link → /channels/{id}; $derived.by merge load+localRefresh
     │   │   ├── +page.ts         # PageLoad: GET /api/channels → {channels, total}
     │   │   └── [id]/
     │   │       ├── +page.svelte  # channel detail: header (title/telegram_id/is_active badge/username), ReplaceLinkForm, "Run history" table (last 5 jobs), link to /jobs; statusClass(status) helper
     │   │       └── +page.ts      # PageLoad: GET /api/channels/{id} + GET /api/jobs?channel_id={id}&limit=5 → {channel, recentJobs}; 404→redirect(303,/channels)
     │   └── jobs/
-    │       ├── +page.svelte      # jobs list: table (id/channel title/pattern/status badge/progress edited/total/created_at), status filter dropdown, auto-refresh 5s if hasRunning ($effect+setInterval+cleanup), channelsById Map lookup
+    │       ├── +page.svelte      # jobs list: dual-layout PR#38 — table (hidden sm:block, id/channel title/pattern/status badge/progress edited/total/created_at) + cards (sm:hidden, #id link + status badge + dl channel/pattern truncate/progress/created); status filter dropdown, auto-refresh 5s if hasRunning ($effect+setInterval+cleanup), channelsById Map lookup
     │       ├── +page.ts          # PageLoad: GET /api/jobs?limit=50 + GET /api/channels (lookup) → {jobs, total, channels}
     │       └── [id]/
-    │           ├── +page.svelte  # job detail: header (id/status badge/channel/pattern/new_link), progress bar (edited/total+percent), Cancel button (POST /api/jobs/{id}/cancel if running/pending), logs table (message_id/success ✓/✗/error/old_text/edited_at); WebSocket realtime: onMount→new WebSocketClient()→onMessage(handleWsMessage)→connect(), onDestroy→close(); handleWsMessage filters by job_id, progress→update edited/failed/total, completed/failed/cancelled→update status+refetchLogs
+    │           ├── +page.svelte  # job detail: header (id/status badge/channel/pattern/new_link, Channel/Pattern flex-col sm:flex-row PR#38), progress bar (edited/total+percent), Cancel button (POST /api/jobs/{id}/cancel if running/pending, py-2.5 ≥44px touch target PR#38), dual-layout logs PR#38 — table (hidden sm:block, message_id/success ✓/✗/error/old_text/edited_at) + cards (sm:hidden, #message_id + ✓/✗ + dl error truncate/old_text truncate/edited_at); WebSocket realtime: onMount→new WebSocketClient()→onMessage(handleWsMessage)→connect(), onDestroy→close(); handleWsMessage filters by job_id, progress→update edited/failed/total, completed/failed/cancelled→update status+refetchLogs
     │           └── +page.ts      # PageLoad: GET /api/jobs/{id} + GET /api/jobs/{id}/logs → {job, logs}; 404→redirect(303,/jobs)
     └── tests/
         ├── setup.ts              # import @testing-library/svelte; afterEach(vi.restoreAllMocks)
@@ -116,3 +116,7 @@ web/
 - **`$state` captures initial props** (PR#26) — `let job = $state(data.job)` захватывает initial value из load, не реагирует на изменения `data.job` (intentional для "load once, update via events"). Svelte 5 advice warning `state_referenced_locally` — advisory, не error. Соответствует паттерну media-gen.
 - **`goto("/jobs/{job_id}")` после replace-link submit** (PR#26) — redirect на job detail page для realtime прогресса через WS. Альтернатива — inline progress на channel detail (дублирует логику job detail page).
 - **`statusClass(status)` helper** (PR#26) — Tailwind классы для status badge: running=brand-600, done=emerald-700, failed=red-700, cancelled=amber-600. Используется в channel detail run history и jobs list/detail.
+- **Responsive dual-layout table↔card** (PR#38) — паттерн `hidden sm:block` для table wrapper + `sm:hidden` для cards section. Оба блока в DOM, CSS media query (`sm:` = 640px) скрывает один на основе viewport width. Desktop (≥640px) — таблица, mobile (<640px) — карточки. Применён на 3 страницах: channels list, jobs list, job detail logs. Стандартный Tailwind pattern для table↔card dual layout. Минус: оба блока в DOM → в jsdom оба видимы → тесты используют `getAllByText`/`getAllByRole` (см. tests.md). Альтернативы (CSS Grid reflow, отдельный mobile компонент, container queries) отклонены — см. ADR PR#38.
+- **Bottom nav `grid-cols-2`** (PR#38) — mobile bottom nav в `+layout.svelte`: `grid grid-cols-2` (был `grid-cols-1` — баг, пункты стопкой). Иконки `text-xl` (был `text-lg`), лейблы `text-xs` (был `text-[10px]`), `py-3` (≥44px touch target). Hardcoded `grid-cols-2` для 2 nav items (Channels, Jobs) — если добавить 3-й пункт, нужно `grid-cols-3`. Sidebar (desktop ≥640px) — БЕЗ изменений (`hidden ... sm:flex`).
+- **Touch targets ≥44px на primary кнопках** (PR#38) — primary submit кнопки `py-2` → `py-2.5` (~44px height): ChannelForm Save, ReplaceLinkForm "Run replace-link", job detail "Cancel job". Apple HIG / Material минимум 44px. Secondary кнопки (Delete, Add channel, Cancel в ChannelForm, Back to jobs) — БЕЗ изменений (≥36px ок для secondary actions). `py-2.5` = 10px+10px padding + ~20px text = ~40px, с border/line-height ~44px.
+- **Job detail header `flex-col sm:flex-row`** (PR#38) — "Channel: #X · Pattern: Y" разбит на два `<span>` (был один text блок с `·` разделителем). `flex-col space-y-1 sm:flex-row sm:space-y-0 sm:gap-3` — mobile в столбец, desktop в строку через gap. `·` разделитель убран.

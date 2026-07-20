@@ -65,7 +65,7 @@ function handleSaved(_channel: Channel) {
     </div>
   {/if}
 
-  <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900">
+  <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
     <table class="min-w-full divide-y divide-slate-800 text-sm">
       <thead class="bg-slate-900 text-xs text-slate-400">
         <tr>
@@ -113,5 +113,53 @@ function handleSaved(_channel: Channel) {
         {/each}
       </tbody>
     </table>
+  </div>
+
+  <div class="space-y-3 sm:hidden">
+    {#each channels as ch (ch.id)}
+      <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+        <div class="flex items-start justify-between gap-2">
+          <a
+            href={`/channels/${ch.id}`}
+            class="font-medium text-white hover:text-brand-400"
+          >
+            {ch.title}
+          </a>
+          {#if ch.is_active}
+            <span class="rounded bg-emerald-900/60 px-2 py-0.5 text-xs text-emerald-200">
+              active
+            </span>
+          {:else}
+            <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+              inactive
+            </span>
+          {/if}
+        </div>
+        <dl class="mt-2 space-y-1 text-xs text-slate-300">
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-400">Telegram ID</dt>
+            <dd>{ch.telegram_id}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-400">Username</dt>
+            <dd>{ch.username ?? "—"}</dd>
+          </div>
+        </dl>
+        <div class="mt-3 flex justify-end">
+          <button
+            type="button"
+            onclick={() => deleteChannel(ch)}
+            disabled={busy}
+            class="rounded-md bg-red-900 px-2 py-1 text-xs text-red-100 hover:bg-red-800 disabled:opacity-60"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    {:else}
+      <div class="rounded-lg border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400">
+        No channels
+      </div>
+    {/each}
   </div>
 </div>

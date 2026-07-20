@@ -81,18 +81,18 @@ async function handleLogout() {
       </div>
 
       <nav
-        class="grid grid-cols-1 border-t border-slate-800 bg-slate-900 sm:hidden"
+        class="grid grid-cols-2 border-t border-slate-800 bg-slate-900 sm:hidden"
         aria-label="Mobile navigation"
       >
         {#each navItems as item (item.href)}
           <a
             href={item.href}
-            class="flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors
+            class="flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors
               {page.url.pathname.startsWith(item.href)
               ? "text-brand-500"
               : "text-slate-400 hover:text-slate-200"}"
           >
-            <span class="text-lg" aria-hidden="true">{item.icon}</span>
+            <span class="text-xl" aria-hidden="true">{item.icon}</span>
             <span>{item.label}</span>
           </a>
         {/each}

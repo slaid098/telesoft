@@ -19,13 +19,13 @@ key_files:
   - web/src/tests/setup.ts — import @testing-library/svelte; afterEach(vi.restoreAllMocks)
   - web/src/tests/LayoutHarness.svelte — обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
   - web/src/tests/login.test.ts — 3 теста: form render, submit+redirect, 401 error
-  - web/src/tests/channels.test.ts — 9 тестов: 3 rows/empty/delete + 3 Add button + 3 ChannelForm
+  - web/src/tests/channels.test.ts — 9 тестов: 3 rows/empty/delete + 3 Add button + 3 ChannelForm; PR#38 — 3 селектора адаптированы под dual-layout (getByText→getAllByText+.length>0, getByRole→getAllByRole+[0])
   - web/src/tests/replace-link.test.ts — 6 тестов PR#36: disabled when empty, disabled when pattern empty, invalid regex error, disabled when limit out of range (0/1001), default limit 100, submits with {pattern, new_link, limit}+redirects
   - web/src/tests/jobs.test.ts — 5 тестов: render, cancel, WS progress, WS completed refetch, WS ignore other job_ids
   - web/src/tests/layout.test.ts — 3 теста: Channels nav, Logout button, username display
   - web/src/tests/api.test.ts — 2 теста: query serialization, ApiError on non-ok
 dependencies: [backend, frontend]
-last_updated: 2026-07-20 (PR#36)
+last_updated: 2026-07-20 (PR#38)
 ---
 
 # tests — backend + frontend
@@ -88,7 +88,7 @@ web/src/tests/
 ├── setup.ts              # import "@testing-library/svelte"; afterEach(vi.restoreAllMocks) — очистка моков между тестами
 ├── LayoutHarness.svelte # обёртка для +layout.svelte (передаёт data prop, рендерит child slot)
 ├── login.test.ts         # 3 теста: form render (username/password fields), submit+redirect (POST /api/auth/login → goto), 401 error display
-├── channels.test.ts      # 9 тестов: 3 rows render (title+active badge)/empty state/delete action + 3 Add button (open form/submit+refresh/cancel) + 3 ChannelForm (disabled when empty/enabled when filled/calls onSaved after POST)
+├── channels.test.ts      # 9 тестов: 3 rows render (title+active badge)/empty state/delete action + 3 Add button (open form/submit+refresh/cancel) + 3 ChannelForm (disabled when empty/enabled when filled/calls onSaved after POST); PR#38 — 3 селектора адаптированы под dual-layout (getByText→getAllByText, getByRole→getAllByRole[0])
 ├── replace-link.test.ts  # 6 тестов PR#36: disabled when fields empty, disabled when pattern empty (переименован с "URLs empty"), invalid regex error display, disabled when limit out of range (NEW: limit=0/1001 → disabled), opens form with default limit 100 (NEW: getByLabelText(/Limit/i).value==="100"), submits with {pattern, new_link, limit:100}+redirects to /jobs/{id} (обновлён — body без post_urls). УДАЛЁН "parses textarea URLs into an array and submits" (textarea убран PR#36)
 ├── jobs.test.ts          # 5 тестов: renders header/status/progress/logs, cancel button calls POST /api/jobs/{id}/cancel, WS progress event updates progress, WS completed event refetches logs, WS events for other job_ids ignored
 ├── layout.test.ts        # 3 теста: Channels nav item, Logout button, signed-in username display
@@ -104,5 +104,6 @@ web/src/tests/
 - **`mockImplementation` для fresh Response** — `vi.fn().mockResolvedValue(response)` возвращает тот же Response → "Body is unusable" на втором вызове. Использовать `mockImplementation(() => Promise.resolve(jsonResponse(...)))` для fresh Response каждый вызов
 - **LayoutHarness.svelte** — обёртка для рендера `+layout.svelte` в тестах (передаёт `data` prop, рендерит child slot через `{@render children()}`)
 - **WebSocket mock pattern** (PR#26, `jobs.test.ts`) — `vi.mock("../lib/ws", ...)` с class mock. `onMessage(handler)` регистрирует handler в `Set<WsMessageHandler>` (НЕ static `vi.fn()`), `emitWsEvent(type, data)` helper дёргает все handlers. `beforeEach` очищает `onMessageHandlers` Set между тестами. `connect()`/`close()` — `vi.fn()` no-op. Позволяет тестировать WS event handling без реального соединения.
-- **28 тестов, 6 файлов** (PR#36, было 26/6 в PR#26) — login (3), channels (9), replace-link (6, обновлён PR#36: +2 limit tests, -1 textarea test, 1 переименован), jobs (5), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
+- **28 тестов, 6 файлов** (PR#38, count unchanged с PR#36) — login (3), channels (9, 3 селектора адаптированы PR#38), replace-link (6), jobs (5), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
+- **`getAllByText`/`getAllByRole` для dual-layout** (PR#38) — dual-layout pattern `hidden sm:block` + `sm:hidden` рендерит текст дважды (table + cards) в DOM. В jsdom (Vitest) media queries НЕ оцениваются → оба блока видимы → `getByText` падает на "Found multiple elements". Решение: `getAllByText("alpha").length > 0` / `getAllByRole("button", { name: "Delete" })[0]`. Альтернатива — mock `window.matchMedia` в vitest setup, но усложняет тесты и ломает text-based селекторы. `getAllBy*` проще и stable. Применено в `channels.test.ts` (3 теста). `jobs.test.ts` — БЕЗ изменений (message_id уникален per log, `getByText` находит первый match).
 - **Vitest НЕ имеет coverage gate** (в отличие от backend pytest `--cov-fail-under=80`). `+page.ts`/`+layout.ts` load functions не покрыты (требуют SvelteKit load context). `ws.ts` покрыт косвенно через mock в `jobs.test.ts`.

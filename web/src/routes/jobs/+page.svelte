@@ -98,7 +98,7 @@ $effect(() => {
     <p class="text-xs text-slate-400">Auto-refresh every 5 seconds while jobs are running.</p>
   {/if}
 
-  <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900">
+  <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
     <table class="min-w-full divide-y divide-slate-800 text-sm">
       <thead class="text-xs text-slate-400">
         <tr>
@@ -139,5 +139,49 @@ $effect(() => {
         {/each}
       </tbody>
     </table>
+  </div>
+
+  <div class="space-y-3 sm:hidden">
+    {#each filteredJobs as job (job.id)}
+      <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+        <div class="flex items-center justify-between gap-2">
+          <a
+            href={`/jobs/${job.id}`}
+            class="font-medium text-white hover:text-brand-400"
+          >
+            #{job.id}
+          </a>
+          <span
+            class={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(
+              job.status,
+            )}`}
+          >
+            {JOB_STATUS_LABELS[job.status]}
+          </span>
+        </div>
+        <dl class="mt-2 space-y-1 text-xs text-slate-300">
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-400">Channel</dt>
+            <dd>{channelTitle(job.channel_id)}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-400">Pattern</dt>
+            <dd class="truncate" title={job.pattern}>{job.pattern}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-400">Progress</dt>
+            <dd>{job.edited}/{job.total}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-400">Created</dt>
+            <dd>{job.created_at}</dd>
+          </div>
+        </dl>
+      </div>
+    {:else}
+      <div class="rounded-lg border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400">
+        No jobs
+      </div>
+    {/each}
   </div>
 </div>

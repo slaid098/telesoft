@@ -122,9 +122,13 @@ async function handleCancel() {
           {JOB_STATUS_LABELS[job.status]}
         </span>
       </div>
-      <div class="text-sm text-slate-400">
-        Channel: <span class="text-slate-200">#{job.channel_id}</span> · Pattern:
-        <span class="text-slate-200">{job.pattern}</span>
+      <div class="text-sm text-slate-400 flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:gap-3">
+        <span>
+          Channel: <span class="text-slate-200">#{job.channel_id}</span>
+        </span>
+        <span>
+          Pattern: <span class="text-slate-200">{job.pattern}</span>
+        </span>
       </div>
       <div class="text-sm text-slate-400">
         New link: <span class="text-slate-200">{job.new_link}</span>
@@ -161,7 +165,7 @@ async function handleCancel() {
           type="button"
           onclick={handleCancel}
           disabled={cancelling}
-          class="rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-60"
+          class="rounded-md bg-red-700 px-3 py-2.5 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-60"
         >
           {cancelling ? "Cancelling…" : "Cancel job"}
         </button>
@@ -186,7 +190,7 @@ async function handleCancel() {
         No logs yet — logs appear as the job progresses
       </div>
     {:else}
-      <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900">
+      <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
         <table class="min-w-full divide-y divide-slate-800 text-sm">
           <thead class="text-xs text-slate-400">
             <tr>
@@ -219,6 +223,35 @@ async function handleCancel() {
             {/each}
           </tbody>
         </table>
+      </div>
+
+      <div class="space-y-3 sm:hidden">
+        {#each logs as log (log.id)}
+          <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm text-slate-300">#{log.message_id}</span>
+              {#if log.success}
+                <span class="text-emerald-400">✓</span>
+              {:else}
+                <span class="text-red-400">✗</span>
+              {/if}
+            </div>
+            <dl class="mt-2 space-y-1 text-xs text-slate-300">
+              <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Error</dt>
+                <dd class="truncate" title={log.error ?? ""}>{log.error ?? "—"}</dd>
+              </div>
+              <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Old text</dt>
+                <dd class="truncate" title={log.old_text ?? ""}>{log.old_text ?? "—"}</dd>
+              </div>
+              <div class="flex justify-between gap-2">
+                <dt class="text-slate-400">Edited at</dt>
+                <dd>{log.edited_at}</dd>
+              </div>
+            </dl>
+          </div>
+        {/each}
       </div>
     {/if}
   </section>
