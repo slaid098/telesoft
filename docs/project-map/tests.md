@@ -69,6 +69,10 @@ tests/
 - **WebSocket test design** (`test_websocket.py`) — `ws_client`/`anon_ws_client` fixtures (TestClient with `websocket_connect("/api/ws")`). `test_ws_receives_events` — `mock_runner` + `mock_telethon_get_message`/`mock_telethon_edit_message`, submit job via runner, receive events via WS, assert `job_started`/`progress`/`completed`. `test_ws_requires_auth` — `anon_ws_client` (без login) → close code 4001. EventBus unit tests — direct `EventBus()` instance. JobRunner unit tests — direct `JobRunner()` instance (start_idempotent, cancel_returns_false_for_unknown)
 - **Coverage 94.08%** после PR #22 (gate 80% пройден). Uncovered: `core/runner.py` 80% (defensive `assert sem is not None`, `is_running`/`get_task`/`active_count`, exception path в `_mark_final` без error column), `api/routers/jobs.py` 95% (defensive `assert row is not None` после `_get_job_or_404`, username match branch), `schemas/job.py` 94% (`WsEvent.from_event` — tested via integration, не unit)
 
+## Smoke test (НЕ часть pytest suite)
+
+`scripts/smoke_test.py` (PR #28, issue #27) — standalone end-to-end smoke test, **НЕ** входит в pytest suite. Запускается отдельно через `uv run python scripts/smoke_test.py`, требует запущенный backend (Docker compose или локальный uvicorn). Проверяет API plumbing: login → list channels → create channel → get by id → delete. НЕ запускает replace-link (нужны реальные post URLs + подключенный бот). Подробности — см. [scripts.md](scripts.md).
+
 ## Frontend tests (`web/src/tests/`)
 
 ```
