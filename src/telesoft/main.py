@@ -8,6 +8,7 @@ from loguru import logger
 from starlette.middleware.sessions import SessionMiddleware
 
 from telesoft.api.routers.auth import router as auth_router
+from telesoft.api.routers.channels import router as channels_router
 from telesoft.config import Settings
 from telesoft.core.telegram import start_client, stop_client
 from telesoft.db.connection import close_db, init_db
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=Settings.from_env().secret_key)
 app.include_router(auth_router)
+app.include_router(channels_router)
 
 
 @app.get("/health")
