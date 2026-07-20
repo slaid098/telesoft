@@ -11,12 +11,16 @@ app on). One instance is created at app startup (see ``main.py`` lifespan) and
 shared across requests via ``app.state.job_runner``.
 
 Job lifecycle:
-- ``submit(job_id, chat_id, message_ids, pattern, new_link)`` schedules a task.
-  The DB row must already exist with ``status='pending'``.
-- The worker acquires the semaphore, marks the job ``running``, then iterates
-  the message ids calling :func:`replace_link_in_post`. Per-post results are
-  persisted to ``edit_logs`` and progress counters on ``edit_jobs`` are
-  updated. Progress events are published to the :class:`EventBus`.
+- ``submit(job_id, chat_id, limit, pattern, new_link)`` schedules a task. The DB
+  row must already exist with ``status='pending'``.
+- The worker acquires the semaphore, marks the job ``running``, then auto-
+  discovers the last ``limit`` channel posts via
+  :func:`telesoft.core.telegram.get_last_messages`, filters them by *pattern*
+  via :func:`telesoft.core.link_replacer.find_posts_with_pattern`, updates
+  ``total`` in the DB to the number of matching posts, and edits each one via
+  :func:`replace_link_in_post`. Per-post results are persisted to
+  ``edit_logs`` and progress counters on ``edit_jobs`` are updated. Progress
+  events are published to the :class:`EventBus`.
 - On completion the job is marked ``done``; on cancellation ``cancelled``;
   on unexpected error ``failed``.
 """
@@ -29,8 +33,9 @@ from typing import Any
 
 from loguru import logger
 
+from telesoft.core import telegram as telegram_module
 from telesoft.core.events import Event, EventBus
-from telesoft.core.link_replacer import replace_link_in_post
+from telesoft.core.link_replacer import find_posts_with_pattern, replace_link_in_post
 from telesoft.db.connection import get_db
 from telesoft.db.models import job as job_model
 from telesoft.db.models import log as log_model
@@ -89,7 +94,7 @@ class JobRunner:
         self,
         job_id: int,
         chat_id: int,
-        message_ids: list[int],
+        limit: int,
         pattern: str,
         new_link: str,
     ) -> None:
@@ -101,7 +106,7 @@ class JobRunner:
             existing.cancel()
         self._cancelled.discard(job_id)
         assert self._semaphore is not None
-        task = asyncio.create_task(self._run_job(job_id, chat_id, message_ids, pattern, new_link))
+        task = asyncio.create_task(self._run_job(job_id, chat_id, limit, pattern, new_link))
         self._tasks[job_id] = task
         logger.bind(job_id=job_id, max_concurrency=self._max_concurrency).info(
             "replace-link job submitted to runner"
@@ -122,7 +127,7 @@ class JobRunner:
         self,
         job_id: int,
         chat_id: int,
-        message_ids: list[int],
+        limit: int,
         pattern: str,
         new_link: str,
     ) -> None:
@@ -132,14 +137,19 @@ class JobRunner:
         async with sem:
             try:
                 await self._mark_running(job_id)
-                await self._publish(Event(type="job_started", data={"job_id": job_id}))
-                total = len(message_ids)
+                messages = await telegram_module.get_last_messages(chat_id, limit)
+                matching = await find_posts_with_pattern(messages, pattern)
+                total = len(matching)
                 await self._set_total(job_id, total)
+                await self._publish(
+                    Event(type="job_started", data={"job_id": job_id, "total": total})
+                )
                 edited = 0
                 failed = 0
-                for message_id in message_ids:
+                for message in matching:
                     if job_id in self._cancelled:
                         raise asyncio.CancelledError  # noqa: TRY301
+                    message_id = int(message.id)
                     result = await replace_link_in_post(chat_id, message_id, pattern, new_link)
                     if result.get("success"):
                         if result.get("edited"):
