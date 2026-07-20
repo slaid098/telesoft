@@ -1,12 +1,12 @@
 ---
-pr: PLACEHOLDER
+pr: 24
 issue: 23
 branch: feat/web/sveltekit-skeleton
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR PLACEHOLDER: SvelteKit skeleton with auth, layout, and api client
+# Handoff — PR #24: SvelteKit skeleton with auth, layout, and api client
 
 ## Что сделано
 

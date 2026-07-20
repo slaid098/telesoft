@@ -1,4 +1,4 @@
-# ADR — PR PLACEHOLDER: SvelteKit skeleton with auth, layout, and api client
+# ADR — PR #24: SvelteKit skeleton with auth, layout, and api client
 
 ## Статус
 
