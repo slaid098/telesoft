@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import aiosqlite
 import pytest
@@ -40,6 +40,8 @@ def mock_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
         "TELEGRAM_BOT_TOKEN",
         "SESSION_PATH",
         "JOBS_MAX_CONCURRENCY",
+        "MAX_PROBE_ID",
+        "TELEGRAM_REQUEST_DELAY",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -134,12 +136,20 @@ class MockMessage:
     text: str
     chat_id: int
     message: str = ""
+    date: object = None
 
 
 @pytest.fixture
 def mock_message() -> MockMessage:
     """A single Message-like object used by the telethon mock."""
     return MockMessage(id=123, text="hello", chat_id=-1001234567890, message="hello")
+
+
+def mock_channel_messages(messages: list[object | None]) -> AsyncMock:
+    """Build a ChannelMessages-like AsyncMock with a ``.messages`` list."""
+    result = MagicMock()
+    result.messages = list(messages)
+    return result
 
 
 @pytest.fixture
@@ -162,6 +172,8 @@ async def mock_telethon_client(
     client.start = AsyncMock()
     client.disconnect = AsyncMock()
     client.is_connected.return_value = True
+    client.side_effect = None
+    client.return_value = mock_channel_messages([])
 
     def _fake_constructor(*_args: object, **_kwargs: object) -> AsyncMock:
         return client
