@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 18
 issue: 17
 branch: feat/auth/session-middleware
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: session-based admin auth
+# Handoff — PR #18: session-based admin auth
 
 ## Что сделано
 
