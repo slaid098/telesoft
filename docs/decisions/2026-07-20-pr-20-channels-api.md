@@ -1,4 +1,4 @@
-# ADR — PR #<PR-NUMBER>: channels CRUD API
+# ADR — PR #20: channels CRUD API
 
 ## Статус
 

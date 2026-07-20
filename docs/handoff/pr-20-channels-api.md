@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 20
 issue: 19
 branch: feat/api/channels-crud
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR-NUMBER>: channels CRUD API
+# Handoff — PR #20: channels CRUD API
 
 ## Что сделано
 
