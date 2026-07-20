@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import aiosqlite
 import pytest
 
 from telesoft.config import Settings
+from telesoft.core import telegram as telegram_module
 from telesoft.db import connection
 from telesoft.db.models import channel as channel_model
 from telesoft.db.models import job as job_model
@@ -101,3 +104,52 @@ async def create_job(mock_db: aiosqlite.Connection, create_channel: ChannelFacto
         )
 
     return _make
+
+
+@dataclass
+class MockMessage:
+    """Minimal Message-like object for testing telegram client wrappers."""
+
+    id: int
+    text: str
+    chat_id: int
+    message: str = ""
+
+
+@pytest.fixture
+def mock_message() -> MockMessage:
+    """A single Message-like object used by the telethon mock."""
+    return MockMessage(id=123, text="hello", chat_id=-1001234567890, message="hello")
+
+
+@pytest.fixture
+async def mock_telethon_client(
+    mock_message: MockMessage,
+    mock_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncIterator[AsyncMock]:
+    """Patch TelegramClient so real get_client/start_client exercise against a mock."""
+    client = AsyncMock()
+    client.get_messages.return_value = [mock_message]
+    client.edit_message.return_value = mock_message
+    client.get_entity.return_value = AsyncMock(id=-1001234567890, title="Test channel")
+    me_mock = AsyncMock()
+    me_mock.id = 6164770162
+    me_mock.username = "server10bot"
+    me_mock.first_name = "Tester"
+    me_mock.bot = True
+    client.get_me.return_value = me_mock
+    client.start = AsyncMock()
+    client.disconnect = AsyncMock()
+    client.is_connected.return_value = True
+
+    def _fake_constructor(*_args: object, **_kwargs: object) -> AsyncMock:
+        return client
+
+    monkeypatch.setattr(telegram_module, "TelegramClient", _fake_constructor)
+
+    telegram_module._state.client = None
+    telegram_module._state.started = False
+    yield client
+    telegram_module._state.client = None
+    telegram_module._state.started = False
