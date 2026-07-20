@@ -3,8 +3,8 @@ module: src/telesoft
 purpose: FastAPI backend — Telegram channel post editor
 key_files:
   - src/telesoft/main.py — FastAPI app: lifespan (init_db/close_db + start/stop_client + EventBus/JobRunner start/stop) + SessionMiddleware + GET /health + include_router(auth/channels/jobs/ws)
-  - src/telesoft/config.py — Settings frozen dataclass with from_env() (incl. jobs_max_concurrency)
-  - src/telesoft/core/telegram.py — bot-mode Telethon singleton client (by-ID fetch only)
+  - src/telesoft/config.py — Settings frozen dataclass with from_env() (incl. jobs_max_concurrency, max_probe_id, telegram_request_delay)
+  - src/telesoft/core/telegram.py — bot-mode Telethon singleton client (by-ID fetch + get_last_messages auto-discovery via channels.GetMessagesRequest raw API)
   - src/telesoft/core/url_parser.py — parse Telegram post URLs → (channel, message_id)
   - src/telesoft/core/link_replacer.py — regex link replacement + by-ID fetch + edit_message
   - src/telesoft/core/events.py — EventBus pub/sub (asyncio.Queue per subscriber)
@@ -39,10 +39,10 @@ src/telesoft/
 ├── __init__.py   # Пустой — package marker
 ├── py.typed      # Пустой — PEP 561 marker (типы доступны внешним потребителям)
 ├── main.py       # FastAPI app: lifespan (init_db → EventBus + JobRunner(max_concurrency=settings.jobs_max_concurrency) start → start_client try/except → yield → runner.stop try/except → stop_client try/except → close_db), SessionMiddleware (signed cookie), include_router(auth + channels + jobs + ws), GET /health → {"status":"ok"}. app.state.event_bus / app.state.job_runner
-├── config.py     # Settings frozen dataclass + from_env() classmethod + helpers (_get_int/_get_str/_get_list). Поля: admin_*, secret_key, host/port/log_level, db_path, telegram_*, session_path, jobs_max_concurrency (env JOBS_MAX_CONCURRENCY, default 3)
-├── core/         # Telegram client + URL parser + link replacer + EventBus + JobRunner (bot-mode, by-ID fetch only)
+├── config.py     # Settings frozen dataclass + from_env() classmethod + helpers (_get_int/_get_str/_get_list/_get_float). Поля: admin_*, secret_key, host/port/log_level, db_path, telegram_*, session_path, jobs_max_concurrency (env JOBS_MAX_CONCURRENCY, default 3), max_probe_id (env MAX_PROBE_ID, default 10000 — upper bound binary search для get_last_messages), telegram_request_delay (env TELEGRAM_REQUEST_DELAY, default 1.0 — delay между запросами к Telegram, flood control)
+├── core/         # Telegram client + URL parser + link replacer + EventBus + JobRunner (bot-mode, by-ID fetch + auto-discovery последних N постов)
 │   ├── __init__.py        # Пустой — package marker
-│   ├── telegram.py        # Bot-mode Telethon singleton: get_client/start_client/stop_client/get_message/get_messages/edit_message/resolve_entity/get_bot_info
+│   ├── telegram.py        # Bot-mode Telethon singleton: get_client/start_client/stop_client/get_message/get_messages/edit_message/resolve_entity/get_bot_info + get_last_messages(channel_id, limit=100) auto-discovery через channels.GetMessagesRequest raw API (helpers: _get_channel_input → InputChannel, _fetch_messages_by_ids с FloodWaitError retry max 3, _find_max_id binary search)
 │   ├── url_parser.py      # parse_post_url/parse_post_urls/is_valid_post_url — public + private channels, ?comment= игнорируется
 │   ├── link_replacer.py   # validate_pattern (re.compile fail-fast), replace_link (re.sub + findall count), replace_link_in_post (get_message by-ID → regex replace → edit_message; None→not-found, count==0→skipped, exception→success=False)
 │   ├── events.py          # EventBus: pub/sub на asyncio.Queue per subscriber; Event dataclass (type, data dict); subscribe()/publish()/unsubscribe(); fan-out через put_nowait
@@ -88,7 +88,13 @@ src/telesoft/
 - **`update_channel` whitelist** (`title`/`username`/`is_active`) — `ValueError` на неизвестном поле
 - **CRUD функции принимают `aiosqlite.Connection` первым аргументом** — no global state в моделях
 - **Bot-mode Telethon singleton** (`core/telegram.py`) — `TelegramClient(session_path, api_id, api_hash, receive_updates=False)` + `client.start(bot_token=...)`. Token в `start()`, НЕ в конструктор. File session (`settings.session_path`) для переиспользования между запусками (НЕ `MemorySession`)
-- **By-ID fetch only** — `get_messages(chat_id, ids=[...])`. **КРИТИЧНО: НЕ `iter_messages`/`get_messages(limit=...)`** — `BotMethodInvalidError` для ботов (history iteration запрещён MTProto)
+- **By-ID fetch only** (для существующих методов) — `get_messages(chat_id, ids=[...])`. **КРИТИЧНО: НЕ `iter_messages`/`get_messages(limit=...)`** — `BotMethodInvalidError` для ботов (history iteration запрещён MTProto)
+- **`get_last_messages` auto-discovery** (PR#32) — `get_last_messages(channel_id, limit=100)` через raw API `channels.GetMessagesRequest` (namespace `telethon.tl.functions.channels`, alias `ChannelsGetMessagesRequest`). Работает для bot-admin (в отличие от `iter_messages`). Алгоритм: binary search max_id (~14 probes с `settings.max_probe_id=10000`) + range fetch одним запросом `ids=list(range(max_id, start_id-1, -1))`. Total ~15 запросов независимо от N. Снимает ограничение PR#14 (by-ID fetch only) — auto-discovery без user-session
+- **`_get_channel_input(channel_id) -> InputChannel`** — `get_entity(channel_id)` → `InputChannel(entity.id, entity.access_hash)`. Raw API требует `InputChannel` (id без `-100` prefix + access_hash)
+- **`_fetch_messages_by_ids` filter** — `m is not None and getattr(m, "date", None) is not None` фильтрует `None` (пост удалён/не существует) и `Message` с `date=None` (служебные). Возвращает `ChannelMessages.messages` (filtered)
+- **FloodWaitError retry max 3** — try/except в `_fetch_messages_by_ids`, `await asyncio.sleep(exc.seconds + 1)` между retry, после 3 попыток re-raise (bounded retries, НЕ infinite как в spike PR#30). Caller решает retry/log/abort
+- **`_find_max_id` binary search** — `lo=1, hi=max_probe_id, last_existing=0`, probe `mid=(lo+hi)//2` через `_fetch_messages_by_ids([mid])`, non-empty → `last_existing=mid, lo=mid+1`, иначе `hi=mid-1`. `await asyncio.sleep(settings.telegram_request_delay)` после каждого probe (flood control). Return `last_existing` (0 если все probes пустые)
+- **`asyncio.sleep(settings.telegram_request_delay)`** между запросами к Telegram (default 1.0s) — после каждого probe в `_find_max_id` и перед range fetch в `get_last_messages`. Для binary search (14 probes) + range fetch (1) — общее время ~15 секунд. НЕ уменьшать delay (flood risk) — лучше кешировать max_id (Pending)
 - **`asyncio.Lock` + double-checked locking** в `start_client()` — защита от concurrent start (fast path до lock, slow path повторная проверка внутри `async with _connection_lock`)
 - **`edit_message` propagates `RPCError`** — не глотает ошибки, caller решает retry/log/abort
 - **URL parser regex** `^https?://t\.me/(c/)?(\w+)/(\d+)` — public (`mychannel/123` → `("mychannel", 123)`), private (`c/1234567890/456` → `(-1001234567890, 456)` через `int(f"-100{channel_part}")`), `?comment=` игнорируется

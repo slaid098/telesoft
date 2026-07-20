@@ -15,8 +15,9 @@ from typing import Any
 
 from loguru import logger
 from telethon import TelegramClient
-from telethon.errors import RPCError
-from telethon.tl.types import Message
+from telethon.errors import FloodWaitError, RPCError
+from telethon.tl.functions.channels import GetMessagesRequest as ChannelsGetMessagesRequest
+from telethon.tl.types import InputChannel, Message
 
 from telesoft.config import Settings
 
@@ -112,3 +113,68 @@ async def get_bot_info() -> dict[str, Any]:
         "first_name": me.first_name,
         "is_bot": me.bot,
     }
+
+
+async def _get_channel_input(channel_id: int) -> InputChannel:
+    """Resolve channel id to InputChannel (id + access_hash) via get_entity."""
+    client = await start_client()
+    entity = await client.get_entity(channel_id)
+    return InputChannel(entity.id, entity.access_hash)
+
+
+async def _fetch_messages_by_ids(channel_input: InputChannel, ids: list[int]) -> list[Message]:
+    """Fetch messages by exact ids via channels.GetMessagesRequest raw API.
+
+    Retries up to 3 times on FloodWaitError, then re-raises.
+    """
+    client = await start_client()
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            result = await client(ChannelsGetMessagesRequest(channel=channel_input, id=ids))
+            messages = list(getattr(result, "messages", []) or [])
+            return [m for m in messages if m is not None and getattr(m, "date", None) is not None]
+        except FloodWaitError as exc:
+            if attempt + 1 >= max_retries:
+                raise
+            await asyncio.sleep(exc.seconds + 1)
+    return []
+
+
+async def _find_max_id(channel_input: InputChannel, max_probe_id: int) -> int:
+    """Binary search the largest existing message id in a channel.
+
+    Probes ids in [1, max_probe_id] via channels.GetMessagesRequest; returns
+    the last id whose fetch returned a non-empty list, or 0 if all empty.
+    """
+    settings = Settings.from_env()
+    lo = 1
+    hi = max_probe_id
+    last_existing = 0
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        probe = await _fetch_messages_by_ids(channel_input, [mid])
+        if probe:
+            last_existing = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+        await asyncio.sleep(settings.telegram_request_delay)
+    return last_existing
+
+
+async def get_last_messages(channel_id: int, limit: int = 100) -> list[Message]:
+    """Return up to ``limit`` most recent channel posts via raw API.
+
+    Uses channels.GetMessagesRequest (works for bot-admin): binary search to
+    find max_id, then a single range fetch for ids [max_id, start_id].
+    """
+    settings = Settings.from_env()
+    channel_input = await _get_channel_input(channel_id)
+    max_id = await _find_max_id(channel_input, settings.max_probe_id)
+    if max_id == 0:
+        return []
+    start_id = max(1, max_id - limit + 1)
+    ids = list(range(max_id, start_id - 1, -1))
+    await asyncio.sleep(settings.telegram_request_delay)
+    return await _fetch_messages_by_ids(channel_input, ids)
