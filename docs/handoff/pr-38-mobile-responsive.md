@@ -10,7 +10,7 @@ created: 2026-07-20
 
 ## Что сделано
 
-Реализован issue #37 — mobile-responsive адаптация frontend. Bottom nav пофикшен (критический баг `grid-cols-1` → `grid-cols-2`, пункты стопкой → горизонтально), таблицы на 3 страницах дублированы карточками на `<640px` (dual-layout паттерн `hidden sm:block` + `sm:hidden`), touch targets на primary кнопках увеличены до ≥44px (`py-2` → `py-2.5`). Desktop (≥640px) — БЕЗ визуальных изменений. Svelte 5 runes, no comments. 28 тестов (все green), Biome, svelte-check (0 errors), Knip — clean.
+Реализован issue #38 — mobile-responsive адаптация frontend. Bottom nav пофикшен (критический баг `grid-cols-1` → `grid-cols-2`, пункты стопкой → горизонтально), таблицы на 3 страницах дублированы карточками на `<640px` (dual-layout паттерн `hidden sm:block` + `sm:hidden`), touch targets на primary кнопках увеличены до ≥44px (`py-2` → `py-2.5`). Desktop (≥640px) — БЕЗ визуальных изменений. Svelte 5 runes, no comments. 28 тестов (все green), Biome, svelte-check (0 errors), Knip — clean.
 
 ### Шаг 1: Bottom nav fix — `web/src/routes/+layout.svelte`
 

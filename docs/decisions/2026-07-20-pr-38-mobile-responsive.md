@@ -29,7 +29,7 @@ Tailwind responsive dual-layout pattern: `hidden sm:block` для table wrapper 
 
 5. **Тесты** — 3 селектора в `channels.test.ts` адаптированы под dual-layout (`getByText` → `getAllByText` + `.length > 0`, `getByRole` → `getAllByRole` + `[0]`). 28 тестов green. `jobs.test.ts` и `replace-link.test.ts` — БЕЗ изменений.
 
-Ключевые отклонения от спецификации issue #37 (зафиксированы в handoff, раздел "Watch out"):
+Ключевые отклонения от спецификации issue #38 (зафиксированы в handoff, раздел "Watch out"):
 - **`getAllByText` вместо `getByText` в channels.test.ts** — спека указывала "адаптировать селекторы под новый markup". Dual-layout рендерит текст дважды (table + cards) → `getByText` падает на "Found multiple elements". `getAllByText` + `.length > 0` — stable, не зависит от того какой layout активен. Альтернатива — mock `window.matchMedia` в vitest setup, но усложняет тесты.
 - **Header "Channel / Pattern" — `·` разделитель убран** — спека указывала `flex-col sm:flex-row` или `space-y-1 sm:space-y-0`. Реализовано `flex-col space-y-1 sm:flex-row sm:gap-3` с двумя `<span>` вместо одного text блока с `·`. На desktop минимальный visual change (gap вместо `·`), но semantic чище.
 - **`grid-cols-2` hardcoded** — спека указывала `grid-cols-2`. Hardcoded для 2 nav items (Channels, Jobs). Если добавить 3-й пункт — нужно `grid-cols-3`. Альтернатива — dynamic class, но Tailwind не генерирует dynamic classes без safelist.
@@ -42,7 +42,7 @@ Tailwind responsive dual-layout pattern: `hidden sm:block` для table wrapper 
 
 - **Отдельный mobile компонент (не выбрано)** — `<ChannelsTable>` для desktop + `<ChannelsCards>` для mobile, условный рендер через `{#if isMobile}`. Минусы: нужен JS для определения viewport (или SvelteKit `userAgent`), дублирование логики (delete, reload) в двух компонентах, сложнее тестировать. Плюсы: чистый markup per layout, no CSS hiding.
 
-- **Оставить таблицы с horizontal scroll (не выбрано)** — `overflow-x-auto` уже есть, юзер скроллит горизонтально. Минусы: плохой UX на mobile (мелкий текст, нужно скроллить чтобы увидеть все колонки, легко промахнуться по кнопке). Спека issue #37 явно требует карточки. Плюсы: no markup duplication, меньше кода.
+- **Оставить таблицы с horizontal scroll (не выбрано)** — `overflow-x-auto` уже есть, юзер скроллит горизонтально. Минусы: плохой UX на mobile (мелкий текст, нужно скроллить чтобы увидеть все колонки, легко промахнуться по кнопке). Спека issue #38 явно требует карточки. Плюсы: no markup duplication, меньше кода.
 
 - **Container queries вместо viewport `sm:` (не выбрано)** — Tailwind v4 `@container` для компонент-уровня адаптации (вместо page-уровня viewport). Минусы: Tailwind v4 ещё не stable в этом проекте (Biome config, svelte-check). Плюсы: компонент адаптируется к своему контейнеру, не к viewport (если компонент в узкой колонке — карточки, даже на desktop). Низкий приоритет — текущий `sm:` (640px) покрывает iPhone SE (375px) → iPad (768px) диапазон корректно.
 
