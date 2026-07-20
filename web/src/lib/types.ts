@@ -74,9 +74,9 @@ export type LogListResponse = {
 };
 
 export type ReplaceLinkRequest = {
-  post_urls: string[];
   pattern: string;
   new_link: string;
+  limit: number;
 };
 
 export type WsEventType = "job_started" | "progress" | "completed" | "failed" | "cancelled";
