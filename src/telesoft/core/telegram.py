@@ -119,7 +119,7 @@ async def _get_channel_input(channel_id: int) -> InputChannel:
     """Resolve channel id to InputChannel (id + access_hash) via get_entity."""
     client = await start_client()
     entity = await client.get_entity(channel_id)
-    return InputChannel(entity.id, entity.access_hash)
+    return InputChannel(entity.id, getattr(entity, "access_hash", 0))
 
 
 async def _fetch_messages_by_ids(channel_input: InputChannel, ids: list[int]) -> list[Message]:
@@ -141,13 +141,14 @@ async def _fetch_messages_by_ids(channel_input: InputChannel, ids: list[int]) ->
     return []
 
 
-async def _find_max_id(channel_input: InputChannel, max_probe_id: int) -> int:
+async def _find_max_id(channel_input: InputChannel, max_probe_id: int, delay: float) -> int:
     """Binary search the largest existing message id in a channel.
 
     Probes ids in [1, max_probe_id] via channels.GetMessagesRequest; returns
     the last id whose fetch returned a non-empty list, or 0 if all empty.
+    Sleeps *delay* seconds between probes except after the final one (when
+    ``lo > hi`` the search is done — no further request is pending).
     """
-    settings = Settings.from_env()
     lo = 1
     hi = max_probe_id
     last_existing = 0
@@ -159,7 +160,8 @@ async def _find_max_id(channel_input: InputChannel, max_probe_id: int) -> int:
             lo = mid + 1
         else:
             hi = mid - 1
-        await asyncio.sleep(settings.telegram_request_delay)
+        if lo <= hi:
+            await asyncio.sleep(delay)
     return last_existing
 
 
@@ -171,10 +173,11 @@ async def get_last_messages(channel_id: int, limit: int = 100) -> list[Message]:
     """
     settings = Settings.from_env()
     channel_input = await _get_channel_input(channel_id)
-    max_id = await _find_max_id(channel_input, settings.max_probe_id)
+    max_id = await _find_max_id(
+        channel_input, settings.max_probe_id, settings.telegram_request_delay
+    )
     if max_id == 0:
         return []
     start_id = max(1, max_id - limit + 1)
     ids = list(range(max_id, start_id - 1, -1))
-    await asyncio.sleep(settings.telegram_request_delay)
     return await _fetch_messages_by_ids(channel_input, ids)
