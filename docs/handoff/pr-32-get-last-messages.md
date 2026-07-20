@@ -1,12 +1,12 @@
 ---
-pr: PR_NUMBER
+pr: 32
 issue: 31
 branch: feat/telegram/get-last-messages
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #PR_NUMBER: get_last_messages via channels.GetMessagesRequest
+# Handoff — PR #32: get_last_messages via channels.GetMessagesRequest
 
 ## Что сделано
 

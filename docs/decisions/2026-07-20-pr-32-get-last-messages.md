@@ -1,4 +1,4 @@
-# ADR — PR #PR_NUMBER: get_last_messages via channels.GetMessagesRequest
+# ADR — PR #32: get_last_messages via channels.GetMessagesRequest
 
 ## Статус
 
