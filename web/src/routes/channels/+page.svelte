@@ -65,7 +65,7 @@ function handleSaved(_channel: Channel) {
     </div>
   {/if}
 
-  <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
+  <div class="hidden overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
     <table class="min-w-full divide-y divide-slate-800 text-sm">
       <thead class="bg-slate-900 text-xs text-slate-400">
         <tr>
@@ -145,7 +145,13 @@ function handleSaved(_channel: Channel) {
             <dd>{ch.username ?? "—"}</dd>
           </div>
         </dl>
-        <div class="mt-3 flex justify-end">
+        <div class="mt-3 flex justify-end gap-2">
+          <a
+            href={`/channels/${ch.id}`}
+            class="rounded-md bg-brand-600 px-2 py-1 text-xs text-white hover:bg-brand-700"
+          >
+            Open
+          </a>
           <button
             type="button"
             onclick={() => deleteChannel(ch)}

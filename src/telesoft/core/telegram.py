@@ -154,6 +154,7 @@ async def _find_max_id(channel_input: InputChannel, max_probe_id: int, delay: fl
     last_existing = 0
     while lo <= hi:
         mid = (lo + hi) // 2
+        logger.debug("binary search probe mid={}", mid)
         probe = await _fetch_messages_by_ids(channel_input, [mid])
         if probe:
             last_existing = mid
@@ -171,13 +172,18 @@ async def get_last_messages(channel_id: int, limit: int = 100) -> list[Message]:
     Uses channels.GetMessagesRequest (works for bot-admin): binary search to
     find max_id, then a single range fetch for ids [max_id, start_id].
     """
+    logger.info("get_last_messages: channel_id={}, limit={}", channel_id, limit)
     settings = Settings.from_env()
     channel_input = await _get_channel_input(channel_id)
     max_id = await _find_max_id(
         channel_input, settings.max_probe_id, settings.telegram_request_delay
     )
+    logger.info("binary search: max_id={}", max_id)
     if max_id == 0:
+        logger.warning("get_last_messages: no messages found (max_id=0)")
         return []
     start_id = max(1, max_id - limit + 1)
     ids = list(range(max_id, start_id - 1, -1))
-    return await _fetch_messages_by_ids(channel_input, ids)
+    messages = await _fetch_messages_by_ids(channel_input, ids)
+    logger.info("fetched {} messages", len(messages))
+    return messages
