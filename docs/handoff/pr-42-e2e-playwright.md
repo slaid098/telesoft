@@ -1,12 +1,12 @@
 ---
-pr: PLACEHOLDER
+pr: 42
 issue: 41
 branch: test/e2e/playwright-mobile
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #PLACEHOLDER: Playwright E2E tests for mobile flow
+# Handoff — PR #42: Playwright E2E tests for mobile flow
 
 ## Что сделано
 

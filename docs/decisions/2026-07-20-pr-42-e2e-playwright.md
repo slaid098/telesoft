@@ -1,4 +1,4 @@
-# ADR — PR #PLACEHOLDER: Playwright E2E tests for mobile flow
+# ADR — PR #42: Playwright E2E tests for mobile flow
 
 ## Статус
 
