@@ -10,13 +10,21 @@ key_files:
   - web/knip.json — dead code detection entry points (lib + routes + tests)
   - web/src/lib/api.ts — fetch wrapper (credentials:include, 401→goto login, ApiError)
   - web/src/lib/ws.ts — WebSocket client (auto-reconnect, heartbeat, cookie auth)
-  - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent)
-  - web/src/routes/+layout.svelte — app shell (sidebar, header, mobile nav)
+  - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent/WsEventType/WsEventPayload)
+  - web/src/lib/components/ChannelForm.svelte — add channel form (Svelte 5 runes, $state/$derived canSubmit)
+  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (textarea URLs, regex validation, $effect)
+  - web/src/routes/+layout.svelte — app shell (sidebar Channels+Jobs nav, header, mobile nav)
   - web/src/routes/+layout.ts — LayoutLoad auth guard (GET /api/auth/me, 401→redirect)
   - web/src/routes/+page.ts — root redirect → /channels
   - web/src/routes/login/+page.svelte — login form (Svelte 5 runes)
-  - web/src/routes/channels/+page.svelte — channels table + delete
+  - web/src/routes/channels/+page.svelte — channels table + delete + Add channel button (inline ChannelForm)
   - web/src/routes/channels/+page.ts — PageLoad GET /api/channels
+  - web/src/routes/channels/[id]/+page.svelte — channel detail (header, ReplaceLinkForm, run history)
+  - web/src/routes/channels/[id]/+page.ts — PageLoad GET /api/channels/{id} + recent jobs, 404→redirect
+  - web/src/routes/jobs/+page.svelte — jobs list (table, status filter, auto-refresh 5s)
+  - web/src/routes/jobs/+page.ts — PageLoad GET /api/jobs + channels lookup
+  - web/src/routes/jobs/[id]/+page.svelte — job detail (progress bar, cancel, logs, WebSocket realtime)
+  - web/src/routes/jobs/[id]/+page.ts — PageLoad GET /api/jobs/{id} + logs, 404→redirect
   - web/Dockerfile.web — multi-stage build → adapter-node runtime
 dependencies: [backend]
 last_updated: 2026-07-20
@@ -48,22 +56,36 @@ web/
     ├── lib/
     │   ├── api.ts        # fetch wrapper: credentials:include, ApiError, 401→goto login, api={get,post,put,patch,del}
     │   ├── ws.ts         # WebSocketClient: auto-reconnect (1s→30s backoff), heartbeat (25s/30s), cookie auth
-    │   └── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, JobStatus, ReplaceLinkRequest
+    │   ├── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, WsEventType, WsEventPayload, JobStatus, ReplaceLinkRequest
+    │   └── components/
+    │       ├── ChannelForm.svelte      # add channel form: $state telegramId/title/username, $derived canSubmit, POST /api/channels → onSaved(channel)
+    │       └── ReplaceLinkForm.svelte  # replace-link form: $state postUrls/pattern/newLink, $effect regex validation (try new RegExp), textarea→array URL parsing, POST /api/channels/{id}/replace-link → goto /jobs/{id}
     ├── routes/
-    │   ├── +layout.svelte  # app shell: sidebar (Channels nav + Logout), header (username), mobile bottom nav; Svelte 5 runes
+    │   ├── +layout.svelte  # app shell: sidebar (Channels + Jobs nav, active state via page.url.pathname.startsWith), header (username), mobile bottom nav; Svelte 5 runes
     │   ├── +layout.ts     # LayoutLoad auth guard: GET /api/auth/me, 401→redirect(303,/login?redirectTo=...); prerender=false, ssr=false
     │   ├── +page.svelte   # (удалён в PR#24 — root redirect в +page.ts)
     │   ├── +page.ts       # root redirect(307, /channels)
     │   ├── login/
     │   │   └── +page.svelte  # login form: $state username/password/error/loading, $derived canSubmit, POST /api/auth/login
-    │   └── channels/
-    │       ├── +page.svelte  # channels table (title/telegram_id/active badge/delete), empty state, $derived.by merge load+localRefresh
-    │       └── +page.ts      # PageLoad: GET /api/channels → {channels, total}
+    │   ├── channels/
+    │   │   ├── +page.svelte      # channels table (title/telegram_id/active badge/delete), empty state, Add channel button (toggle inline ChannelForm), row link → /channels/{id}; $derived.by merge load+localRefresh
+    │   │   ├── +page.ts         # PageLoad: GET /api/channels → {channels, total}
+    │   │   └── [id]/
+    │   │       ├── +page.svelte  # channel detail: header (title/telegram_id/is_active badge/username), ReplaceLinkForm, "Run history" table (last 5 jobs), link to /jobs; statusClass(status) helper
+    │   │       └── +page.ts      # PageLoad: GET /api/channels/{id} + GET /api/jobs?channel_id={id}&limit=5 → {channel, recentJobs}; 404→redirect(303,/channels)
+    │   └── jobs/
+    │       ├── +page.svelte      # jobs list: table (id/channel title/pattern/status badge/progress edited/total/created_at), status filter dropdown, auto-refresh 5s if hasRunning ($effect+setInterval+cleanup), channelsById Map lookup
+    │       ├── +page.ts          # PageLoad: GET /api/jobs?limit=50 + GET /api/channels (lookup) → {jobs, total, channels}
+    │       └── [id]/
+    │           ├── +page.svelte  # job detail: header (id/status badge/channel/pattern/new_link), progress bar (edited/total+percent), Cancel button (POST /api/jobs/{id}/cancel if running/pending), logs table (message_id/success ✓/✗/error/old_text/edited_at); WebSocket realtime: onMount→new WebSocketClient()→onMessage(handleWsMessage)→connect(), onDestroy→close(); handleWsMessage filters by job_id, progress→update edited/failed/total, completed/failed/cancelled→update status+refetchLogs
+    │           └── +page.ts      # PageLoad: GET /api/jobs/{id} + GET /api/jobs/{id}/logs → {job, logs}; 404→redirect(303,/jobs)
     └── tests/
         ├── setup.ts              # import @testing-library/svelte; afterEach(vi.restoreAllMocks)
         ├── LayoutHarness.svelte  # обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
         ├── login.test.ts         # 3 теста: form render, submit+redirect, 401 error
-        ├── channels.test.ts      # 3 теста: rows render, empty state, delete action
+        ├── channels.test.ts      # 9 тестов: 3 rows/empty/delete + 3 Add button (open/submit+refresh/cancel) + 3 ChannelForm (disabled/enabled/onSaved)
+        ├── replace-link.test.ts  # 4 теста: disabled when empty, URLs empty, invalid regex error, parses textarea+submits+redirects
+        ├── jobs.test.ts          # 5 тестов: render header/status/progress/logs, cancel POST, WS progress updates, WS completed refetches logs, WS ignores other job_ids
         ├── layout.test.ts        # 3 теста: Channels nav, Logout button, username display
         └── api.test.ts           # 2 теста: query serialization, ApiError on non-ok
 ```
@@ -84,3 +106,12 @@ web/
 - **TS types mirroring backend Pydantic** — `Channel`/`Job`/`Log`/`WsEvent`/`JobStatus`/`ReplaceLinkRequest` (PR#20/22). `JobStatus="done"` (не "completed"), `WsEvent` flat structure (не `{type, data}`), `MeResponse={user: string}` (не `{username}`)
 - **`$derived.by` для merge load+localRefresh** — паттерн из media-gen для избежания `state_referenced_locally` warning (Svelte 5 advice)
 - **Layout + login в одном коммите** — `page.url.pathname === "/login"` требует существования `/login` маршрута (SvelteKit типобезопасное сравнение, иначе ts error)
+- **Svelte 5 runes в forms** (PR#26) — `$state` для form fields, `$derived` для `canSubmit`/`parsedUrls`/`trimmedPattern`/`progressPct`, `$effect` для side-effects (regex validation обновляет `patternError`, auto-refresh `setInterval` с cleanup). `bind:value` для двусторонней связи. НЕ Svelte 4 `export let`/`$:`/`on:click`.
+- **WebSocket realtime в job detail** (PR#26) — `onMount` → `new WebSocketClient()` → `onMessage(handleWsMessage)` → `connect()`, `onDestroy` → `close()`. Per-page client (не shared в layout) — упрощает lifecycle и тестирование. `handleWsMessage` фильтрует по `job_id`, `progress` event → update `job.edited`/`job.failed`/`job.total`, terminal events (`completed`/`failed`/`cancelled`) → update `job.status` + `refetchLogs()`. `WsEventPayload` тип для `msg.data` (wire format `{type, data: {...}}`).
+- **Regex validation client-side** (PR#26) — `ReplaceLinkForm`: `$effect` → `try { new RegExp(trimmedPattern) } catch (err) { patternError = err.message }`. Без external libs (regex-utils/regexpp). Submit блокируется если `patternError !== null`. Server-side `validate_pattern` (PR#22) — security, client-side — UX (fail-fast).
+- **textarea→array URL parsing** (PR#26) — `postUrls.split("\n").map((u) => u.trim()).filter((u) => u.length > 0)`. Live-обновление "Parsed: N URL(s)". Backend `parse_post_urls` (PR#16) валидирует формат `https://t.me/{channel}/{id}` — client-side формат-валидация не дублируется.
+- **Auto-refresh polling** (PR#26, jobs list) — `$effect` проверяет `hasRunning`, запускает `setInterval(refresh, 5000)` если true, cleanup в return функции (`clearInterval`). Когда jobs завершаются → effect re-runs → cleanup previous interval. Job detail — WS-only (без polling fallback для MVP).
+- **Nav active state** (PR#26) — `page.url.pathname.startsWith(item.href)` для active class. `navItems` array: Channels + Jobs. Mobile bottom nav автоматически подхватывает тот же array.
+- **`$state` captures initial props** (PR#26) — `let job = $state(data.job)` захватывает initial value из load, не реагирует на изменения `data.job` (intentional для "load once, update via events"). Svelte 5 advice warning `state_referenced_locally` — advisory, не error. Соответствует паттерну media-gen.
+- **`goto("/jobs/{job_id}")` после replace-link submit** (PR#26) — redirect на job detail page для realtime прогресса через WS. Альтернатива — inline progress на channel detail (дублирует логику job detail page).
+- **`statusClass(status)` helper** (PR#26) — Tailwind классы для status badge: running=brand-600, done=emerald-700, failed=red-700, cancelled=amber-600. Используется в channel detail run history и jobs list/detail.
