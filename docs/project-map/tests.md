@@ -24,8 +24,11 @@ key_files:
   - web/src/tests/jobs.test.ts — 5 тестов: render, cancel, WS progress, WS completed refetch, WS ignore other job_ids
   - web/src/tests/layout.test.ts — 3 теста: Channels nav, Logout button, username display
   - web/src/tests/api.test.ts — 2 теста: query serialization, ApiError on non-ok
+  - web/playwright.config.ts — Playwright E2E config (PR#42): mobile project 375x812, baseURL docker-dind:8080, webServer off, workers 1
+  - web/tests/e2e/helpers.ts — E2E helpers (PR#42): login(page), getSessionCookie(page), BASE_URL, TEST_CHANNEL_ID=2, TEST_USERNAME/TEST_PASSWORD
+  - web/tests/e2e/mobile.spec.ts — 7 E2E тестов (PR#42): login, channels no duplicates, open button, replace-link form, job progress, zero-match, websocket
 dependencies: [backend, frontend]
-last_updated: 2026-07-20 (PR#38)
+last_updated: 2026-07-20 (PR#42)
 ---
 
 # tests — backend + frontend
@@ -107,3 +110,30 @@ web/src/tests/
 - **28 тестов, 6 файлов** (PR#38, count unchanged с PR#36) — login (3), channels (9, 3 селектора адаптированы PR#38), replace-link (6), jobs (5), layout (3), api (2). Все зелёные. Smoke-тест из PR#2 удалён (реальные тесты заменяют)
 - **`getAllByText`/`getAllByRole` для dual-layout** (PR#38) — dual-layout pattern `hidden sm:block` + `sm:hidden` рендерит текст дважды (table + cards) в DOM. В jsdom (Vitest) media queries НЕ оцениваются → оба блока видимы → `getByText` падает на "Found multiple elements". Решение: `getAllByText("alpha").length > 0` / `getAllByRole("button", { name: "Delete" })[0]`. Альтернатива — mock `window.matchMedia` в vitest setup, но усложняет тесты и ломает text-based селекторы. `getAllBy*` проще и stable. Применено в `channels.test.ts` (3 теста). `jobs.test.ts` — БЕЗ изменений (message_id уникален per log, `getByText` находит первый match).
 - **Vitest НЕ имеет coverage gate** (в отличие от backend pytest `--cov-fail-under=80`). `+page.ts`/`+layout.ts` load functions не покрыты (требуют SvelteKit load context). `ws.ts` покрыт косвенно через mock в `jobs.test.ts`.
+
+## E2E tests (`web/tests/e2e/`) — PR#42
+
+```
+web/
+├── playwright.config.ts  # E2E config: testDir ./tests/e2e, timeout 30s, retries 1, fullyParallel false, workers 1 (sequential), baseURL http://docker-dind:8080 (nginx, контейнеры running, webServer отключён), screenshot/video/trace retain-on-failure, project "mobile" (viewport 375x812, deviceScaleFactor 2, isMobile true, hasTouch true — iPhone SE-like)
+└── tests/e2e/
+    ├── helpers.ts        # BASE_URL, TEST_CHANNEL_ID=2 (реальный test channel telegram_id=-1003903711726 из spike PR#30), TEST_USERNAME/TEST_PASSWORD (admin/admin из .env контейнера api), login(page, username, password) — goto /login, fill #username/#password, click submit, waitForURL **/channels; getSessionCookie(page) — читает cookie "session" из context
+    └── mobile.spec.ts    # 7 тестов, beforeEach login (каждый изолирован, новый context): 1) login flow redirects to channels, 2) channels list no duplicates on mobile (table hidden, cards visible, ≥1 card), 3) open button on channel card navigates to detail, 4) replace-link form submission redirects to job detail (несуществующий pattern → zero-match), 5) job detail shows progress bar and reaches terminal status (done|failed|cancelled, timeout 30s), 6) zero-match feedback shows amber alert when total is zero, 7) websocket connection establishes without console errors (listener + filter по "websocket"/"ws"/"socket")
+```
+
+### Patterns
+
+- **Playwright** (`@playwright/test`) — Microsoft E2E framework, auto-waiting, tracing, mobile emulation. `npx playwright install chromium --with-deps` — Chromium 149 + FFmpeg + Headless Shell в `~/.cache/ms-playwright/`
+- **Mobile-first** — единственный project `mobile` (375x812, iPhone SE-like). Desktop/tablet — follow-up
+- **Running контейнеры + webServer отключён** — тесты запускаются против уже running docker compose (nginx + api + web), `baseURL: docker-dind:8080`. Тесты НЕ запускают/останавливают контейнеры. `localhost:8080` НЕ работает из opencode container (nginx проброшен на DinD host)
+- **Sequential `workers: 1`, `fullyParallel: false`** — общий running backend → race conditions при параллельности (test 4 создаёт job, test 5 видит чужой job). Sequential гарантирует изоляцию
+- **`TEST_CHANNEL_ID = 2` hardcode** — реальный test channel (telegram_id=-1003903711726 из spike PR#30). Channel id=1 — фейковый (-1001234567890), replace-link падает. Channel id=2 с несуществующим pattern → done, total=0 (zero-match для test 6)
+- **CSS class-based селекторы** — `div.hidden.overflow-x-auto.sm\:block` (table wrapper), `div.space-y-3.sm\:hidden` (cards section), `#rl-pattern`/`#rl-new-link`/`#rl-limit` (form inputs), `.border-amber-900.bg-amber-950` (zero-match alert). `div.` prefix + `overflow-x-auto` для уникальности (`.hidden.sm\:block` матчит 2 элемента — span "Signed in as admin" + table wrapper → strict mode violation)
+- **`test.beforeEach` login** — каждый test изолирован (новый context), login через helper. Без `beforeAll`/`afterAll` create/delete test channel — pre-existing канал hardcode (MVP)
+- **Job completion timeout 30s** — job на реальном канале с limit=3 занимает ~12s (binary search 13 probes × 1s delay PR#32 + range fetch). 30s — баланс
+- **`retries: 1`** — flaky tolerance (network, timing). Если падает 2 раза подряд — реальный баг
+- **CI НЕ запускает E2E** — `.github/workflows/ci.yml` не изменён. CI runner не имеет running контейнеров (docker compose в CI сложно). E2E запускаются только локально (`npm run test:e2e`). Follow-up: CI job с docker compose services
+- **package.json scripts** — `test:e2e` (все projects), `test:e2e:mobile` (только mobile project)
+- **.gitignore** — `test-results/`, `playwright-report/`, `playwright/.cache/` (артефакты: скриншоты, видео, trace, HTML report, browser cache)
+- **Knip green без изменений** — `knip.json` `entry` не включает `tests/e2e/` (Playwright tests не part of SvelteKit build). `playwright.config.ts` в корне `web/` — Knip `project` не включает root config files
+- **svelte-check НЕ проверяет E2E** — `playwright.config.ts` и `tests/e2e/*.ts` НЕ в `src/`. Biome проверяет все `.ts` (включая tests/) — green

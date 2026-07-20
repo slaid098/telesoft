@@ -26,8 +26,9 @@ key_files:
   - web/src/routes/jobs/[id]/+page.svelte — job detail: dual-layout logs table+cards PR#38, progress bar, cancel (touch target py-2.5 PR#38), WebSocket realtime
   - web/src/routes/jobs/[id]/+page.ts — PageLoad GET /api/jobs/{id} + logs, 404→redirect
   - web/Dockerfile.web — multi-stage build → adapter-node runtime
+  - web/playwright.config.ts — Playwright E2E config (PR#42): mobile project 375x812, baseURL docker-dind:8080, webServer off, workers 1
 dependencies: [backend]
-last_updated: 2026-07-20 (PR#38)
+last_updated: 2026-07-20 (PR#42)
 ---
 
 # frontend — web/
@@ -47,8 +48,9 @@ web/
 ├── postcss.config.js     # tailwindcss + autoprefixer
 ├── tailwind.config.js    # content paths + brand color palette (50/100/500/600/700, синий)
 ├── Dockerfile.web        # multi-stage build → runtime (adapter-node, PORT=3000)
+├── playwright.config.ts # E2E config (PR#42): testDir ./tests/e2e, timeout 30s, retries 1, workers 1 (sequential), baseURL http://docker-dind:8080 (nginx, контейнеры running, webServer отключён), project "mobile" (viewport 375x812, deviceScaleFactor 2, isMobile true, hasTouch true — iPhone SE-like)
 ├── .env.example          # VITE_API_BASE=http://localhost:8000
-├── .gitignore
+├── .gitignore            # PR#42: +test-results/, +playwright-report/, +playwright/.cache/
 └── src/
     ├── app.html          # HTML shell (h-full + dark theme body bg-slate-950)
     ├── app.css           # @tailwind base/components/utilities + html,body height:100% + font-smoothing
@@ -87,7 +89,10 @@ web/
         ├── replace-link.test.ts  # 6 тестов PR#36: disabled when empty, disabled when pattern empty, invalid regex error, disabled when limit out of range (0/1001), default limit 100, submits with {pattern, new_link, limit}+redirects
         ├── jobs.test.ts          # 5 тестов: render header/status/progress/logs, cancel POST, WS progress updates, WS completed refetches logs, WS ignores other job_ids
         ├── layout.test.ts        # 3 теста: Channels nav, Logout button, username display
-        └── api.test.ts           # 2 теста: query serialization, ApiError on non-ok
+        ├── api.test.ts           # 2 теста: query serialization, ApiError on non-ok
+        └── e2e/                  # PR#42 — Playwright E2E tests (см. tests.md)
+            ├── helpers.ts        # login(page), getSessionCookie(page), BASE_URL, TEST_CHANNEL_ID=2, TEST_USERNAME/TEST_PASSWORD
+            └── mobile.spec.ts    # 7 тестов: login, channels no duplicates, open button, replace-link form, job progress, zero-match, websocket
 ```
 
 ## Patterns
@@ -120,3 +125,4 @@ web/
 - **Bottom nav `grid-cols-2`** (PR#38) — mobile bottom nav в `+layout.svelte`: `grid grid-cols-2` (был `grid-cols-1` — баг, пункты стопкой). Иконки `text-xl` (был `text-lg`), лейблы `text-xs` (был `text-[10px]`), `py-3` (≥44px touch target). Hardcoded `grid-cols-2` для 2 nav items (Channels, Jobs) — если добавить 3-й пункт, нужно `grid-cols-3`. Sidebar (desktop ≥640px) — БЕЗ изменений (`hidden ... sm:flex`).
 - **Touch targets ≥44px на primary кнопках** (PR#38) — primary submit кнопки `py-2` → `py-2.5` (~44px height): ChannelForm Save, ReplaceLinkForm "Run replace-link", job detail "Cancel job". Apple HIG / Material минимум 44px. Secondary кнопки (Delete, Add channel, Cancel в ChannelForm, Back to jobs) — БЕЗ изменений (≥36px ок для secondary actions). `py-2.5` = 10px+10px padding + ~20px text = ~40px, с border/line-height ~44px.
 - **Job detail header `flex-col sm:flex-row`** (PR#38) — "Channel: #X · Pattern: Y" разбит на два `<span>` (был один text блок с `·` разделителем). `flex-col space-y-1 sm:flex-row sm:space-y-0 sm:gap-3` — mobile в столбец, desktop в строку через gap. `·` разделитель убран.
+- **Playwright E2E** (PR#42) — `web/playwright.config.ts` в корне `web/` (НЕ в `src/`), `testDir: ./tests/e2e`. Mobile project (375x812, iPhone SE-like). `baseURL: http://docker-dind:8080` (nginx, контейнеры running, webServer отключён). `workers: 1`, `fullyParallel: false` (sequential — общий running backend). `@playwright/test` в devDependencies. Scripts `test:e2e`/`test:e2e:mobile`. `.gitignore`: `test-results/`, `playwright-report/`, `playwright/.cache/`. Подробности — см. [tests.md](tests.md) E2E секция.
