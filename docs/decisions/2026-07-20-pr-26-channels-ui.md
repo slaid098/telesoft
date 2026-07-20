@@ -1,4 +1,4 @@
-# ADR — PR #<PR_NUMBER>: Channels UI with Svelte 5 runes, WS realtime, and client-side regex validation
+# ADR — PR #26: Channels UI with Svelte 5 runes, WS realtime, and client-side regex validation
 
 ## Статус
 

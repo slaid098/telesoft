@@ -1,12 +1,12 @@
 ---
-pr: <PR_NUMBER>
+pr: 26
 issue: 25
 branch: feat/web/channels-ui
 status: ready
 created: 2026-07-20
 ---
 
-# Handoff — PR #<PR_NUMBER>: Channel form, detail page, and replace-link UI
+# Handoff — PR #26: Channel form, detail page, and replace-link UI
 
 ## Что сделано
 
