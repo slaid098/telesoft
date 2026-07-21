@@ -22,6 +22,7 @@ const MODES: { value: ReplaceMode; label: string }[] = [
 let mode = $state<ReplaceMode>("simple");
 let pattern = $state("");
 let newLink = $state("");
+let postLink = $state("");
 let limit = $state(100);
 let keepTail = $state(false);
 let error = $state<string | null>(null);
@@ -35,6 +36,7 @@ let lastRunNonce = $state(0);
 
 const trimmedPattern = $derived(pattern.trim());
 const trimmedNewLink = $derived(newLink.trim());
+const trimmedPostLink = $derived(postLink.trim());
 const limitValid = $derived(Number.isFinite(limit) && limit >= 1 && limit <= 1000);
 const selectedPattern = $derived(
   patterns?.patterns.find((p) => String(p.id) === selectedPatternId) ?? null,
@@ -48,6 +50,7 @@ const canSubmit = $derived(
     !previewing &&
     effectivePattern.length > 0 &&
     trimmedNewLink.length > 0 &&
+    trimmedPostLink.length > 0 &&
     limitValid &&
     (mode !== "library" || selectedPattern !== null),
 );
@@ -90,6 +93,7 @@ async function handlePreview() {
     const result = await previewReplace(channelId, {
       pattern: effectivePattern,
       new_link: trimmedNewLink,
+      post_link: trimmedPostLink,
       mode,
       keep_tail: keepTail,
       limit,
@@ -113,6 +117,7 @@ async function submitJob() {
     const result = await replaceLink(channelId, {
       pattern: effectivePattern,
       new_link: trimmedNewLink,
+      post_link: trimmedPostLink,
       limit,
       mode,
       keep_tail: keepTail,
@@ -250,6 +255,23 @@ async function handleSubmit(event: Event) {
       class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       required
     />
+  </div>
+
+  <div>
+    <label for="rl-post-link" class="mb-1 block text-xs font-medium text-slate-300">
+      Ссылка на последний пост
+    </label>
+    <input
+      id="rl-post-link"
+      type="text"
+      bind:value={postLink}
+      placeholder="https://t.me/channel/140"
+      class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+      required
+    />
+    <p class="mt-1 text-xs text-slate-400">
+      Открой последний пост в Telegram → правый клик → Copy Link. Можно вставить ссылку или просто номер поста.
+    </p>
   </div>
 
   <label class="flex items-center gap-2 text-sm text-slate-300">
