@@ -1,11 +1,11 @@
 ---
-pr: <PR-NUMBER>
+pr: 54
 issue: 53
 status: Accepted
 created: 2026-07-21
 ---
 
-# ADR — PR <PR-NUMBER>: merge compose files for production
+# ADR — PR 54: merge compose files for production
 
 ## Статус
 

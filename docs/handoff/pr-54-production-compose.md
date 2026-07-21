@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 54
 issue: 53
 branch: refactor/docker/production-compose
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR-NUMBER>: merge compose files for production
+# Handoff — PR 54: merge compose files for production
 
 ## Что сделано
 
