@@ -61,6 +61,7 @@ async def _create_schema(db: aiosqlite.Connection) -> None:
     for index in indexes:
         await db.execute(index)
     await db.commit()
+    await pattern_model.seed_builtin_patterns(db)
 
 
 async def close_db() -> None:

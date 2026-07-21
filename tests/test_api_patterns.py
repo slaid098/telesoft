@@ -13,7 +13,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from telesoft.db import connection
-from telesoft.db.models import pattern as pattern_model
 from telesoft.main import app
 from tests.conftest import MockMessage
 
@@ -41,20 +40,27 @@ def _create_channel(
     return response.json()
 
 
-def test_patterns_list_empty(authed_client: TestClient) -> None:
-    """Fresh DB has no patterns → empty list, total=0."""
+def test_patterns_list_seeded(authed_client: TestClient) -> None:
+    """Fresh DB is seeded with 4 built-in patterns (issue #59)."""
     response = authed_client.get("/api/patterns")
     assert response.status_code == 200
     body = response.json()
-    assert body["total"] == 0
-    assert body["patterns"] == []
+    assert body["total"] == 4
+    assert all(p["is_builtin"] is True for p in body["patterns"])
+    names = {p["name"] for p in body["patterns"]}
+    assert names == {
+        "Telegram bot links",
+        "Telegram bot links (with groups)",
+        "Telegram channel post links",
+        "Generic URLs",
+    }
 
 
 def test_patterns_create_and_list(
     authed_client: TestClient,
     db_handle: Any,
 ) -> None:
-    """Created custom pattern appears in the list."""
+    """Created custom pattern appears in the list after the 4 built-ins."""
     payload = {
         "name": "Basic bot link",
         "pattern": r"https://t\.me/bot\?start=\d+",
@@ -63,14 +69,15 @@ def test_patterns_create_and_list(
     response = authed_client.post("/api/patterns", json=payload)
     assert response.status_code == 201, response.text
     body = response.json()
-    assert body["id"] == 1
+    assert body["id"] == 5
     assert body["name"] == "Basic bot link"
     assert body["pattern"] == r"https://t\.me/bot\?start=\d+"
     assert body["is_builtin"] is False
 
     listing = authed_client.get("/api/patterns").json()
-    assert listing["total"] == 1
-    assert listing["patterns"][0]["name"] == "Basic bot link"
+    assert listing["total"] == 5
+    assert listing["patterns"][-1]["name"] == "Basic bot link"
+    assert listing["patterns"][0]["is_builtin"] is True
 
 
 def test_patterns_create_invalid_regex_422(authed_client: TestClient) -> None:
@@ -101,7 +108,7 @@ def test_patterns_delete_custom(
     authed_client: TestClient,
     db_handle: Any,
 ) -> None:
-    """Custom pattern can be deleted (204)."""
+    """Custom pattern can be deleted (204) — built-ins stay."""
     response = authed_client.post(
         "/api/patterns",
         json={"name": "Temp", "pattern": r"https://x", "description": None},
@@ -110,24 +117,18 @@ def test_patterns_delete_custom(
     delete = authed_client.delete(f"/api/patterns/{pattern_id}")
     assert delete.status_code == 204
     listing = authed_client.get("/api/patterns").json()
-    assert listing["total"] == 0
+    assert listing["total"] == 4  # only built-ins remain
+    assert all(p["is_builtin"] is True for p in listing["patterns"])
 
 
 async def test_patterns_delete_builtin_403(
     authed_client: TestClient,
     db_handle: Any,
 ) -> None:
-    """Built-in pattern cannot be deleted → 403."""
-    row = await pattern_model.create_pattern(
-        db_handle,
-        name="Built-in",
-        pattern=r"https://x",
-        description=None,
-        is_builtin=1,
-        created_at="2026-07-21T00:00:00Z",
-    )
-    pattern_id = int(row["id"])
-    response = authed_client.delete(f"/api/patterns/{pattern_id}")
+    """Built-in pattern (seeded) cannot be deleted → 403."""
+    listing = authed_client.get("/api/patterns").json()
+    builtin_id = int(listing["patterns"][0]["id"])
+    response = authed_client.delete(f"/api/patterns/{builtin_id}")
     assert response.status_code == 403
 
 
