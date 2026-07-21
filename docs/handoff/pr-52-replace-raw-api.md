@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 52
 issue: 51
 branch: fix/telegram/replace-raw-api
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR-NUMBER>: replace raw API with high-level get_messages, fix message.text=None
+# Handoff — PR 52: replace raw API with high-level get_messages, fix message.text=None
 
 ## Что сделано
 

@@ -1,11 +1,11 @@
 ---
-pr: <PR-NUMBER>
+pr: 52
 issue: 51
 status: Accepted
 created: 2026-07-21
 ---
 
-# ADR — PR <PR-NUMBER>: replace raw API with high-level get_messages in get_last_messages
+# ADR — PR 52: replace raw API with high-level get_messages in get_last_messages
 
 ## Статус
 
