@@ -169,7 +169,7 @@ def test_preview_replace_returns_previews(
             "new_link": "https://new.example.com",
             "post_link": "https://t.me/test/140",
             "mode": "advanced",
-            "keep_tail": False,
+            "full_replace": False,
             "limit": 100,
         },
     )
@@ -177,11 +177,38 @@ def test_preview_replace_returns_previews(
     body = response.json()
     assert body["total_matches"] == 3
     assert len(body["previews"]) == 3
+    # full_replace=False keeps the pattern unchanged (no .* appended)
     assert body["compiled_pattern"] == r"https://old\.example\.com"
     for entry in body["previews"]:
         assert entry["match_source"] == "text"
         assert "https://old.example.com" in entry["before"]
         assert "https://new.example.com" in entry["after"]
+
+
+def test_preview_replace_full_replace_true_appends_tail(
+    authed_client: TestClient,
+    mock_telethon_get_last_messages: Any,
+) -> None:
+    """full_replace=True (default) appends .* to the compiled pattern."""
+    channel = _create_channel(authed_client)
+    mock_telethon_get_last_messages.return_value = [
+        MockMessage(id=1, text="see https://old.example.com/a", chat_id=-1001234567890),
+    ]
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/preview-replace",
+        json={
+            "pattern": r"https://old\.example\.com",
+            "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
+            "mode": "advanced",
+            "full_replace": True,
+            "limit": 100,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["total_matches"] == 1
+    assert body["compiled_pattern"] == r"https://old\.example\.com.*"
 
 
 def test_preview_replace_simple_mode_compiles_wildcard(
@@ -200,7 +227,7 @@ def test_preview_replace_simple_mode_compiles_wildcard(
             "new_link": "https://new.example.com",
             "post_link": "140",
             "mode": "simple",
-            "keep_tail": False,
+            "full_replace": False,
         },
     )
     assert response.status_code == 200, response.text
@@ -209,21 +236,21 @@ def test_preview_replace_simple_mode_compiles_wildcard(
     assert r".*" in body["compiled_pattern"]
 
 
-def test_preview_replace_keep_tail_strips_tail(
+def test_preview_replace_partial_replace_keeps_tail(
     authed_client: TestClient,
     mock_telethon_get_last_messages: Any,
 ) -> None:
-    """keep_tail=True strips the trailing -s-* segment from compiled_pattern."""
+    """full_replace=False — compiled_pattern keeps the original pattern (no .* tail)."""
     channel = _create_channel(authed_client)
     mock_telethon_get_last_messages.return_value = []
     response = authed_client.post(
         f"/api/channels/{channel['id']}/preview-replace",
         json={
-            "pattern": r"https://t\.me/bot\?start=flow-\d+(-s-\d+)?",
+            "pattern": r"https://t\.me/bot\?start=flow-\d+",
             "new_link": "https://new.example.com",
             "post_link": "140",
             "mode": "advanced",
-            "keep_tail": True,
+            "full_replace": False,
         },
     )
     assert response.status_code == 200, response.text
@@ -338,17 +365,70 @@ def test_replace_link_simple_mode_compiles_pattern(
             "new_link": "https://new.example.com",
             "post_link": "140",
             "mode": "simple",
-            "keep_tail": False,
+            "full_replace": False,
             "limit": 100,
         },
     )
     assert response.status_code == 201, response.text
-    # Verify the stored job has the compiled regex pattern
     jobs = authed_client.get("/api/jobs").json()
     assert jobs["total"] == 1
     stored = jobs["jobs"][0]["pattern"]
     assert r".*" in stored
     assert "https://t.me/bot" not in stored  # original wildcard form must be gone
+
+
+def test_replace_link_full_replace_true_appends_tail(
+    authed_client: TestClient,
+    mock_runner: Any,
+    mock_telethon_get_last_messages: Any,
+) -> None:
+    """full_replace=True (default) appends .* to the compiled pattern stored in DB."""
+    channel = _create_channel(authed_client)
+    mock_telethon_get_last_messages.return_value = [
+        MockMessage(id=1, text="https://old.example.com/path", chat_id=-1001234567890),
+    ]
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/replace-link",
+        json={
+            "pattern": r"https://old\.example\.com",
+            "new_link": "https://new.example.com",
+            "post_link": "140",
+            "mode": "advanced",
+            "full_replace": True,
+            "limit": 100,
+        },
+    )
+    assert response.status_code == 201, response.text
+    jobs = authed_client.get("/api/jobs").json()
+    assert jobs["total"] == 1
+    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com.*"
+
+
+def test_replace_link_partial_replace_keeps_pattern(
+    authed_client: TestClient,
+    mock_runner: Any,
+    mock_telethon_get_last_messages: Any,
+) -> None:
+    """full_replace=False — the compiled pattern is stored unchanged (no .* appended)."""
+    channel = _create_channel(authed_client)
+    mock_telethon_get_last_messages.return_value = [
+        MockMessage(id=1, text="https://old.example.com/path", chat_id=-1001234567890),
+    ]
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/replace-link",
+        json={
+            "pattern": r"https://old\.example\.com",
+            "new_link": "https://new.example.com",
+            "post_link": "140",
+            "mode": "advanced",
+            "full_replace": False,
+            "limit": 100,
+        },
+    )
+    assert response.status_code == 201, response.text
+    jobs = authed_client.get("/api/jobs").json()
+    assert jobs["total"] == 1
+    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com"
 
 
 def test_replace_link_unknown_mode_422(
@@ -375,7 +455,7 @@ def test_replace_link_backward_compat_default_mode(
     mock_runner: Any,
     mock_telethon_get_last_messages: Any,
 ) -> None:
-    """replace-link without mode/keep_tail still works (defaults advanced)."""
+    """replace-link without mode/full_replace still works (defaults advanced, full_replace=True)."""
     channel = _create_channel(authed_client)
     mock_telethon_get_last_messages.return_value = [
         MockMessage(id=1, text="https://old.example.com", chat_id=-1001234567890),
@@ -392,4 +472,5 @@ def test_replace_link_backward_compat_default_mode(
     assert response.status_code == 201, response.text
     jobs = authed_client.get("/api/jobs").json()
     assert jobs["total"] == 1
-    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com"
+    # default full_replace=True appends .* to the stored pattern
+    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com.*"

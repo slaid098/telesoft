@@ -6,10 +6,11 @@ import re
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from telethon.tl.types import MessageEntityTextUrl
+from telethon.tl.types import MessageEntityBold, MessageEntityItalic, MessageEntityTextUrl
 
 from telesoft.core import telegram as telegram_module
 from telesoft.core.link_replacer import (
+    _adjust_entity_offsets,
     find_posts_with_pattern,
     replace_link,
     replace_link_in_post,
@@ -302,3 +303,172 @@ async def test_replace_link_in_posts_without_progress_callback(
     )
 
     assert summary == {"total": 1, "edited": 1, "failed": 0, "skipped": 0}
+
+
+async def test_replace_link_in_post_preserves_bold_entity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bold entity after the replaced link survives with shifted offset."""
+    text = "https://old.example.com **bold text**"
+    bold = MessageEntityBold(offset=24, length=9)
+    msg = _mk_msg(11, text, [bold])
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, msg, r"https://old\.example\.com", "https://new.io"
+    )
+
+    assert result["success"] is True
+    assert result["match_source"] == "text"
+    edit_mock.assert_awaited_once()
+    entities = edit_mock.await_args.kwargs["formatting_entities"]
+    assert entities is not None
+    assert len(entities) == 1
+    # new link "https://new.io" = 14 chars, old "https://old.example.com" = 23 chars
+    # delta = -9 → entity.offset shifts from 24 to 15
+    assert entities[0].offset == 15
+    assert entities[0].length == 9
+    # Original entity must NOT be mutated
+    assert bold.offset == 24
+    assert bold.length == 9
+
+
+async def test_replace_link_in_post_preserves_italic_entity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An italic entity after the replaced link survives with shifted offset."""
+    text = "see https://old.example.com *italic here*"
+    italic = MessageEntityItalic(offset=28, length=11)
+    msg = _mk_msg(12, text, [italic])
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, msg, r"https://old\.example\.com", "https://new.io"
+    )
+
+    assert result["success"] is True
+    edit_mock.assert_awaited_once()
+    entities = edit_mock.await_args.kwargs["formatting_entities"]
+    assert entities is not None
+    # new link 14 chars, old 23 chars, delta -9 → offset 28 → 19
+    assert entities[0].offset == 19
+    assert entities[0].length == 11
+    # Original not mutated
+    assert italic.offset == 28
+
+
+async def test_replace_link_in_post_no_entities_passes_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A post without entities → formatting_entities=None (no formatting applied)."""
+    msg = _mk_msg(13, "https://old.example.com")
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    await replace_link_in_post(
+        -1001234567890, msg, r"https://old\.example\.com", "https://new.example.com"
+    )
+
+    edit_mock.assert_awaited_once()
+    assert edit_mock.await_args.kwargs["formatting_entities"] is None
+
+
+async def test_replace_link_in_post_preserves_multiple_entities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multiple entities each shift by the cumulative delta of matches before them."""
+    # Two links separated by spaces, two bold entities after each link.
+    text = "old **one** old **two**"
+    # match "old" at [0, 3] and [11, 14]
+    bold1 = MessageEntityBold(offset=4, length=6)  # "**one**" at [4, 10]
+    bold2 = MessageEntityBold(offset=15, length=6)  # "**two**" at [15, 21]
+    msg = _mk_msg(14, text, [bold1, bold2])
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    result = await replace_link_in_post(-1001234567890, msg, "old", "REPLACEMENT")
+
+    assert result["success"] is True
+    assert result["replacements"] == 2
+    entities = edit_mock.await_args.kwargs["formatting_entities"]
+    assert entities is not None
+    assert len(entities) == 2
+    # "REPLACEMENT" is 11 chars, "old" is 3 chars → delta = +8 per match
+    # bold1 after first match only → shift +8 → offset 4 → 12
+    # bold2 after both matches → shift +16 → offset 15 → 31
+    assert entities[0].offset == 12
+    assert entities[0].length == 6
+    assert entities[1].offset == 31
+    assert entities[1].length == 6
+    # originals untouched
+    assert bold1.offset == 4
+    assert bold2.offset == 15
+
+
+def test_adjust_entity_offsets_no_matches_returns_copies() -> None:
+    """Pattern does not match → entities returned as fresh copies, unchanged."""
+    bold = MessageEntityBold(offset=5, length=10)
+    adjusted = _adjust_entity_offsets([bold], "no match here", r"https://x\.com", "https://y.com")
+    assert len(adjusted) == 1
+    assert adjusted[0].offset == 5
+    assert adjusted[0].length == 10
+    assert adjusted[0] is not bold  # a copy
+
+
+def test_adjust_entity_offsets_delta_positive() -> None:
+    """New link longer than old → entity.offset shifts right (positive delta)."""
+    text = "old link is here and more text follows after"
+    # match at [0, 3] ("old"), new_link "veryold" (delta = +4)
+    bold = MessageEntityBold(offset=20, length=10)
+    adjusted = _adjust_entity_offsets([bold], text, "old", "veryold")
+    assert adjusted[0].offset == 24
+    assert adjusted[0].length == 10
+
+
+def test_adjust_entity_offsets_delta_negative() -> None:
+    """New link shorter than old → entity.offset shifts left (negative delta)."""
+    text = "https://old.example.com is here"
+    # match [0, 23], new_link "https://new.io" (14 chars, delta = -9)
+    bold = MessageEntityBold(offset=28, length=6)
+    adjusted = _adjust_entity_offsets([bold], text, r"https://old\.example\.com", "https://new.io")
+    assert adjusted[0].offset == 19
+    assert adjusted[0].length == 6
+
+
+def test_adjust_entity_offsets_delta_zero() -> None:
+    """New link same length as old → offset/length unchanged."""
+    text = "AAA is here"
+    bold = MessageEntityBold(offset=7, length=4)
+    adjusted = _adjust_entity_offsets([bold], text, "AAA", "BBB")
+    assert adjusted[0].offset == 7
+    assert adjusted[0].length == 4
+
+
+def test_adjust_entity_offsets_match_inside_entity_grows_length() -> None:
+    """Match strictly inside entity → entity.length grows by per-match delta."""
+    text = "xxWORDyy"
+    # entity covers "WORDyy" [2, 8], match "WORD" at [2, 6] inside entity
+    bold = MessageEntityBold(offset=2, length=6)
+    # new_link "PHRASE" (6 chars, delta = +2)
+    adjusted = _adjust_entity_offsets([bold], text, "WORD", "PHRASE")
+    assert adjusted[0].offset == 2
+    assert adjusted[0].length == 8  # 6 + (6-4)
+
+
+def test_adjust_entity_offsets_does_not_mutate_originals() -> None:
+    """Returned entities are copies — original list/entities untouched."""
+    bold = MessageEntityBold(offset=20, length=5)
+    italic = MessageEntityItalic(offset=30, length=4)
+    originals = [bold, italic]
+    _adjust_entity_offsets(originals, "match at 0", "match", "REPLACEMENT")
+    assert bold.offset == 20
+    assert bold.length == 5
+    assert italic.offset == 30
+    assert italic.length == 4
+
+
+def test_adjust_entity_offsets_empty_entities() -> None:
+    """Empty entity list → empty result."""
+    assert _adjust_entity_offsets([], "text", "t", "T") == []

@@ -97,7 +97,7 @@ async def replace_link_endpoint(
     Validates the channel (404). *payload.post_link* is parsed via
     :func:`parse_post_link` to derive ``max_id`` (422 on parse error). The
     *pattern* is compiled via :func:`compile_pattern` according to
-    *payload.mode* and *payload.keep_tail* before being saved to the DB and
+    *payload.mode* and *payload.full_replace* before being saved to the DB and
     submitted to the runner — so ``edit_jobs.pattern`` always carries the
     final regex (for transparency in the logs). The compiled regex is
     validated as a regex (422 on invalid syntax). The backend fetches the
@@ -112,7 +112,7 @@ async def replace_link_endpoint(
             detail=f"Invalid post_link: {exc}",
         ) from exc
     try:
-        compiled = compile_pattern(payload.pattern, payload.mode, payload.keep_tail)
+        compiled = compile_pattern(payload.pattern, payload.mode, payload.full_replace)
     except ValueError as exc:
         raise HTTPException(
             status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -159,7 +159,7 @@ async def preview_replace_endpoint(
 
     Parses *payload.post_link* via :func:`parse_post_link` to derive
     ``max_id`` (422 on parse error). Compiles *payload.pattern* via
-    :func:`compile_pattern` (mode + keep_tail), validates the resulting
+    :func:`compile_pattern` (mode + full_replace), validates the resulting
     regex (422 on invalid syntax), fetches the last ``payload.limit`` posts
     ending at ``max_id`` via ``get_last_messages``, and runs
     :func:`preview_replace` to produce up to 3 ``before -> after`` preview
@@ -173,7 +173,7 @@ async def preview_replace_endpoint(
             detail=f"Invalid post_link: {exc}",
         ) from exc
     try:
-        compiled = compile_pattern(payload.pattern, payload.mode, payload.keep_tail)
+        compiled = compile_pattern(payload.pattern, payload.mode, payload.full_replace)
     except ValueError as exc:
         raise HTTPException(
             status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,

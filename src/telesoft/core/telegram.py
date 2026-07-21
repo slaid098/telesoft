@@ -104,13 +104,29 @@ async def get_messages(chat_id: int, message_ids: list[int]) -> list[Message]:
     return [m for m in messages if m is not None]
 
 
-async def edit_message(chat_id: int, message_id: int, text: str) -> Message:
-    """Edit a single message text; retries 3x on FloodWaitError."""
+async def edit_message(
+    chat_id: int,
+    message_id: int,
+    text: str,
+    formatting_entities: list[Any] | None = None,
+) -> Message:
+    """Edit a single message text; retries 3x on FloodWaitError.
+
+    *formatting_entities* (when provided) is forwarded to Telethon's
+    ``client.edit_message(formatting_entities=...)`` so bold/italic/etc
+    entities survive the text substitution — see
+    :func:`telesoft.core.link_replacer._adjust_entity_offsets`.
+    """
     client = await start_client()
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            return await client.edit_message(chat_id, message_id, text=text)
+            return await client.edit_message(
+                chat_id,
+                message_id,
+                text=text,
+                formatting_entities=formatting_entities,
+            )
         except FloodWaitError as exc:
             if attempt + 1 >= max_retries:
                 raise

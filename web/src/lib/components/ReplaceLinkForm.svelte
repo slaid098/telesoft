@@ -24,7 +24,7 @@ let pattern = $state("");
 let newLink = $state("");
 let postLink = $state("");
 let limit = $state(100);
-let keepTail = $state(false);
+let fullReplace = $state(true);
 let error = $state<string | null>(null);
 let submitting = $state(false);
 let previewing = $state(false);
@@ -95,7 +95,7 @@ async function handlePreview() {
       new_link: trimmedNewLink,
       post_link: trimmedPostLink,
       mode,
-      keep_tail: keepTail,
+      full_replace: fullReplace,
       limit,
     });
     onPreview?.(result);
@@ -120,7 +120,7 @@ async function submitJob() {
       post_link: trimmedPostLink,
       limit,
       mode,
-      keep_tail: keepTail,
+      full_replace: fullReplace,
     });
     onSubmit?.(result);
     await goto(`/jobs/${result.job_id}`);
@@ -274,10 +274,35 @@ async function handleSubmit(event: Event) {
     </p>
   </div>
 
-  <label class="flex items-center gap-2 text-sm text-slate-300">
-    <input type="checkbox" bind:checked={keepTail} class="rounded border-slate-700 bg-slate-800" />
-    Сохранить хвост (<code class="text-xs text-slate-400">-s-*</code>)
-  </label>
+  <fieldset class="space-y-1.5">
+    <legend class="mb-1 text-xs font-medium text-slate-300">Замена</legend>
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input
+        type="radio"
+        name="rl-replace-mode"
+        checked={fullReplace === true}
+        onclick={() => (fullReplace = true)}
+        class="border-slate-700 bg-slate-800"
+      />
+      Полная замена <span class="text-xs text-slate-400">(по умолчанию)</span>
+    </label>
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input
+        type="radio"
+        name="rl-replace-mode"
+        checked={fullReplace === false}
+        onclick={() => (fullReplace = false)}
+        class="border-slate-700 bg-slate-800"
+      />
+      Частичная (оставить окончание)
+    </label>
+    {#if fullReplace === false}
+      <p class="text-xs text-slate-400">
+        Окончание ссылки после <code class="text-brand-300">*</code> останется в посте.
+        Используй <code class="text-brand-300">*</code> чтобы указать где обрезать.
+      </p>
+    {/if}
+  </fieldset>
 
   <div>
     <label for="rl-limit" class="mb-1 block text-xs font-medium text-slate-300">

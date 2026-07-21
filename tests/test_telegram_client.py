@@ -63,7 +63,9 @@ async def test_edit_message_success(
     mock_telethon_client: AsyncMock, mock_message: MockMessage
 ) -> None:
     result = await edit_message(chat_id=-1001234567890, message_id=123, text="new text")
-    mock_telethon_client.edit_message.assert_awaited_once_with(-1001234567890, 123, text="new text")
+    mock_telethon_client.edit_message.assert_awaited_once_with(
+        -1001234567890, 123, text="new text", formatting_entities=None
+    )
     assert result is mock_message
 
 

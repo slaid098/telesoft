@@ -1,24 +1,21 @@
-"""Pattern compiler: simple-mode wildcard expansion, keep_tail trimming,
-and an orchestrator that picks the right strategy per *mode*.
+"""Pattern compiler: simple-mode wildcard expansion, full_replace tail
+handling, and an orchestrator that picks the right strategy per *mode*.
 
-Three public functions:
+Two public functions:
 
 - :func:`compile_simple` — convert ``*`` wildcards to ``.*`` and escape the
   remaining literal pieces so a non-technical user can describe a link
   template without knowing regex syntax.
-- :func:`apply_keep_tail` — strip an optional ``-s-<digits>`` tail off the
-  end of a regex so :func:`re.sub` only replaces the prefix and the tail
-  survives in the original post.
-- :func:`compile_pattern` — orchestrator that selects the strategy based on
-  ``mode`` (``"simple"``, ``"library"`` or ``"advanced"``) and optionally
-  applies :func:`apply_keep_tail`.
+- :func:`compile_pattern` — orchestrator that selects the strategy based
+  on ``mode`` (``"simple"``, ``"library"`` or ``"advanced"``) and optionally
+  appends ``.*`` to the pattern so :func:`re.sub` replaces the whole link
+  (``full_replace=True``) or leaves the tail in place
+  (``full_replace=False``).
 """
 
 from __future__ import annotations
 
 import re
-
-_TAIL_RE = re.compile(r"(?:\(-s-\\d\+\)\?|\\-s\\-\\d\+|\\-s\\-\.\*|-s-\\d\+|-s-\.\*)\Z")
 
 
 def compile_simple(raw: str) -> str:
@@ -36,38 +33,17 @@ def compile_simple(raw: str) -> str:
     return ".*".join(re.escape(part) for part in parts)
 
 
-def apply_keep_tail(pattern: str) -> str:
-    """Strip an optional ``-s-<tail>`` segment off the end of *pattern*.
-
-    Recognises the forms documented in issue #55:
-
-    - ``(-s-\\d+)?`` — optional captured digits tail
-    - ``-s-\\d+`` — bare digits tail
-    - ``-s-.*`` — wildcard tail
-
-    When a tail is found it is removed so :func:`re.sub` only replaces the
-    prefix and leaves the tail in the original post. When no tail is present
-    *pattern* is returned unchanged.
-
-    Example::
-
-        apply_keep_tail(r"https://t\\.me/bot\\?start=flow-\\d+-\\d+-\\d+(-s-\\d+)?")
-        -> r"https://t\\.me/bot\\?start=flow-\\d+-\\d+-\\d+"
-    """
-    match = _TAIL_RE.search(pattern)
-    if match is None:
-        return pattern
-    return pattern[: match.start()]
-
-
-def compile_pattern(raw: str, mode: str, keep_tail: bool) -> str:
-    """Compile *raw* into a regex according to *mode* and *keep_tail*.
+def compile_pattern(raw: str, mode: str, full_replace: bool = True) -> str:
+    """Compile *raw* into a regex according to *mode* and *full_replace*.
 
     - ``mode="simple"`` → :func:`compile_simple` (``*`` → ``.*``)
     - ``mode="library"`` or ``mode="advanced"`` → *raw* is treated as a
       ready regex and returned as-is
-    - ``keep_tail=True`` → :func:`apply_keep_tail` strips a trailing
-      ``-s-*`` segment so it survives the replacement
+    - ``full_replace=True`` → append ``.*`` to the compiled pattern if it
+      does not already end with ``.*`` or ``\\S+`` so :func:`re.sub` replaces
+      the whole link (default, "Полная замена")
+    - ``full_replace=False`` → return the compiled pattern as-is so only
+      the matched prefix is replaced and the tail stays ("Частичная")
 
     Raises :class:`ValueError` for an unknown *mode* so the router can map
     it to a 422 response.
@@ -79,6 +55,6 @@ def compile_pattern(raw: str, mode: str, keep_tail: bool) -> str:
     else:
         msg = f"unknown pattern mode: {mode!r}"
         raise ValueError(msg)
-    if keep_tail:
-        compiled = apply_keep_tail(compiled)
+    if full_replace and not compiled.endswith(".*") and not compiled.endswith(r"\S+"):
+        compiled += ".*"
     return compiled
