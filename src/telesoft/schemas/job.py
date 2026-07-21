@@ -16,9 +16,10 @@ def now_iso() -> str:
 class ReplaceLinkRequest(BaseModel):
     """Payload for ``POST /api/channels/{id}/replace-link``.
 
-    The backend auto-discovers the last ``limit`` channel posts via
-    :func:`telesoft.core.telegram.get_last_messages` and filters them by
-    ``pattern`` — the caller no longer collects post URLs manually.
+    The caller provides ``post_link`` (a Telegram post URL or plain message
+    id) from which the backend derives ``max_id`` for
+    :func:`telesoft.core.telegram.get_last_messages`. The last ``limit``
+    posts ending at ``max_id`` are fetched and filtered by ``pattern``.
 
     ``mode`` selects how *pattern* is interpreted (``"simple"`` wildcards,
     ``"library"`` / ``"advanced"`` raw regex). ``keep_tail`` strips a
@@ -27,6 +28,7 @@ class ReplaceLinkRequest(BaseModel):
 
     pattern: str
     new_link: str
+    post_link: str
     limit: int = Field(default=100, ge=1, le=1000)
     mode: str = "advanced"
     keep_tail: bool = False
@@ -37,6 +39,7 @@ class PreviewRequest(BaseModel):
 
     pattern: str
     new_link: str
+    post_link: str
     mode: str = "advanced"
     keep_tail: bool = False
     limit: int = Field(default=100, ge=1, le=1000)

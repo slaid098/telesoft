@@ -70,6 +70,18 @@ describe("ReplaceLinkForm", () => {
     expect(button.disabled).toBe(true);
   });
 
+  it("disables submit when post link is empty", async () => {
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
+      target: { value: "https://new.example.com" },
+    });
+    const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
   it("enables submit when simple-mode fields are filled", async () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
     await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
@@ -77,6 +89,9 @@ describe("ReplaceLinkForm", () => {
     });
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
     });
     const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
     expect(button.disabled).toBe(false);
@@ -89,6 +104,9 @@ describe("ReplaceLinkForm", () => {
     });
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
     });
 
     const limitInput = screen.getByLabelText(/Limit/i);
@@ -107,7 +125,7 @@ describe("ReplaceLinkForm", () => {
     expect(limitInput.value).toBe("100");
   });
 
-  it("submits with pattern, new_link, mode and keep_tail", async () => {
+  it("submits with pattern, new_link, post_link, mode and keep_tail", async () => {
     vi.mocked(replaceLink).mockResolvedValue({ job_id: 5 });
     render(ReplaceLinkForm, { props: { channelId: 1 } });
 
@@ -116,6 +134,9 @@ describe("ReplaceLinkForm", () => {
     });
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
     });
 
     const form = screen.getByRole("button", { name: /Запустить/i }).closest("form");
@@ -126,6 +147,7 @@ describe("ReplaceLinkForm", () => {
       expect(replaceLink).toHaveBeenCalledWith(1, {
         pattern: "https://t.me/bot?start=flow-*",
         new_link: "https://new.example.com",
+        post_link: "https://t.me/test/140",
         limit: 100,
         mode: "simple",
         keep_tail: false,
@@ -146,6 +168,9 @@ describe("ReplaceLinkForm", () => {
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
     });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
+    });
     const keepTail = screen.getByLabelText(/Сохранить хвост/i);
     await fireEvent.click(keepTail);
 
@@ -156,7 +181,11 @@ describe("ReplaceLinkForm", () => {
     await waitFor(() => {
       expect(replaceLink).toHaveBeenCalledWith(
         1,
-        expect.objectContaining({ keep_tail: true, mode: "simple" }),
+        expect.objectContaining({
+          keep_tail: true,
+          mode: "simple",
+          post_link: "https://t.me/test/140",
+        }),
       );
     });
   });
@@ -192,6 +221,9 @@ describe("ReplaceLinkForm", () => {
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
     });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
+    });
 
     const previewBtn = screen.getByRole("button", { name: /Предпросмотр/i });
     await fireEvent.click(previewBtn);
@@ -200,6 +232,7 @@ describe("ReplaceLinkForm", () => {
       expect(previewReplace).toHaveBeenCalledWith(1, {
         pattern: "https://old.example.com",
         new_link: "https://new.example.com",
+        post_link: "https://t.me/test/140",
         mode: "simple",
         keep_tail: false,
         limit: 100,
@@ -222,6 +255,9 @@ describe("ReplaceLinkForm", () => {
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
     });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
+    });
 
     rerender({ channelId: 1, runNonce: 1 });
 
@@ -231,6 +267,7 @@ describe("ReplaceLinkForm", () => {
     expect(replaceLink).toHaveBeenCalledWith(1, {
       pattern: "https://t.me/bot?start=flow-*",
       new_link: "https://new.example.com",
+      post_link: "https://t.me/test/140",
       limit: 100,
       mode: "simple",
       keep_tail: false,
@@ -248,6 +285,9 @@ describe("ReplaceLinkForm", () => {
     });
     await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
     });
 
     rerender({ channelId: 1, runNonce: 5 });

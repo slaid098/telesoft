@@ -94,6 +94,7 @@ def test_replace_link_success(
         json={
             "pattern": pattern,
             "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
             "limit": 100,
         },
     )
@@ -112,6 +113,7 @@ def test_replace_link_invalid_channel(
         json={
             "pattern": r"https://x",
             "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
         },
     )
     assert response.status_code == 404
@@ -128,6 +130,25 @@ def test_replace_link_invalid_pattern(
         json={
             "pattern": "[invalid",
             "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
+        },
+    )
+    assert response.status_code == 422
+    mock_telethon_get_last_messages.assert_not_awaited()
+
+
+def test_replace_link_invalid_post_link_422(
+    authed_client: TestClient,
+    mock_telethon_get_last_messages: AsyncMock,
+) -> None:
+    """Invalid post_link → 422 (no Telegram fetch)."""
+    channel = _create_channel(authed_client)
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/replace-link",
+        json={
+            "pattern": r"https://x",
+            "new_link": "https://new.example.com",
+            "post_link": "invalid",
         },
     )
     assert response.status_code == 422
@@ -141,7 +162,11 @@ def test_replace_link_limit_validation(
 ) -> None:
     channel = _create_channel(authed_client)
     endpoint = f"/api/channels/{channel['id']}/replace-link"
-    base_body = {"pattern": r"https://x", "new_link": "https://new.example.com"}
+    base_body = {
+        "pattern": r"https://x",
+        "new_link": "https://new.example.com",
+        "post_link": "140",
+    }
 
     too_low = authed_client.post(endpoint, json={**base_body, "limit": 0})
     assert too_low.status_code == 422
@@ -166,7 +191,11 @@ def test_replace_link_default_limit(
     mock_telethon_get_last_messages.return_value = _matching_messages("https://old.example.com", 1)
     response = authed_client.post(
         f"/api/channels/{channel['id']}/replace-link",
-        json={"pattern": pattern, "new_link": "https://new.example.com"},
+        json={
+            "pattern": pattern,
+            "new_link": "https://new.example.com",
+            "post_link": "140",
+        },
     )
     assert response.status_code == 201
     job_id = response.json()["job_id"]
@@ -188,6 +217,7 @@ def test_replace_link_requires_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: P
             json={
                 "pattern": r"https://x",
                 "new_link": "https://new.example.com",
+                "post_link": "140",
             },
         )
         assert response.status_code == 401

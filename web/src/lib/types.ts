@@ -78,6 +78,7 @@ export type ReplaceMode = "simple" | "library" | "advanced";
 export type ReplaceLinkRequest = {
   pattern: string;
   new_link: string;
+  post_link: string;
   limit: number;
   mode: ReplaceMode;
   keep_tail: boolean;
@@ -86,6 +87,7 @@ export type ReplaceLinkRequest = {
 export type PreviewRequest = {
   pattern: string;
   new_link: string;
+  post_link: string;
   mode: ReplaceMode;
   keep_tail: boolean;
   limit: number;
