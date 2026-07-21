@@ -8,18 +8,20 @@ key_files:
   - web/vitest.config.ts — jsdom + @testing-library/svelte + coverage v8
   - web/biome.json — linter/formatter config (noExplicitAny=error, 2-space, double quotes)
   - web/knip.json — dead code detection entry points (lib + routes + tests)
-  - web/src/lib/api.ts — fetch wrapper (credentials:include, 401→goto login, ApiError)
+  - web/src/lib/api.ts — fetch wrapper (credentials:include, 401→goto login, ApiError) + PR#58: previewReplace/listPatterns/createPattern/deletePattern + typed replaceLink wrapper
   - web/src/lib/ws.ts — WebSocket client (auto-reconnect, heartbeat, cookie auth)
-  - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent/WsEventType/WsEventPayload/ReplaceLinkRequest)
+  - web/src/lib/types.ts — TS types mirroring backend Pydantic (Channel/Job/Log/WsEvent/WsEventType/WsEventPayload/ReplaceLinkRequest; PR#58: ReplaceMode, PreviewRequest/Item/Response, PatternResponse/ListResponse/CreateRequest, ReplaceLinkRequest+mode+keep_tail)
   - web/src/lib/components/ChannelForm.svelte — add channel form (Svelte 5 runes, $state/$derived canSubmit; PR#38 touch target py-2.5)
-  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (limit number input 1..1000, regex validation, $effect; PR#36 убрал textarea URLs; PR#38 touch target py-2.5)
+  - web/src/lib/components/ReplaceLinkForm.svelte — replace-link form (PR#58 редизайн: 3 таба Simple/Library/Advanced via role="tablist", keep_tail checkbox, Preview+Run buttons, runSignal prop; PR#36 limit 1..1000; PR#38 touch target py-2.5)
+  - web/src/lib/components/PreviewModal.svelte — PR#58: modal role="dialog", before→after pairs, compiled_pattern, onRun/onEdit callbacks
+  - web/src/lib/components/PatternLibrary.svelte — PR#58: modal CRUD for link_patterns (listPatterns/createPattern/deletePattern, is_builtin badge, onPatternsChanged callback)
   - web/src/routes/+layout.svelte — app shell (sidebar Channels+Jobs nav, header, mobile bottom nav grid-cols-2 PR#38)
   - web/src/routes/+layout.ts — LayoutLoad auth guard (GET /api/auth/me, 401→redirect)
   - web/src/routes/+page.ts — root redirect → /channels
   - web/src/routes/login/+page.svelte — login form (Svelte 5 runes)
   - web/src/routes/channels/+page.svelte — channels list: dual-layout table (≥640px) + cards (<640px) PR#38, delete, Add channel button (inline ChannelForm)
   - web/src/routes/channels/+page.ts — PageLoad GET /api/channels
-  - web/src/routes/channels/[id]/+page.svelte — channel detail (header, ReplaceLinkForm, run history)
+  - web/src/routes/channels/[id]/+page.svelte — channel detail (header, ReplaceLinkForm, run history; PR#58: PreviewModal integration, runSignal nonce trigger)
   - web/src/routes/channels/[id]/+page.ts — PageLoad GET /api/channels/{id} + recent jobs, 404→redirect
   - web/src/routes/jobs/+page.svelte — jobs list: dual-layout table (≥640px) + cards (<640px) PR#38, status filter, auto-refresh 5s
   - web/src/routes/jobs/+page.ts — PageLoad GET /api/jobs + channels lookup
@@ -28,7 +30,7 @@ key_files:
   - web/Dockerfile.web — multi-stage build → adapter-node runtime
   - web/playwright.config.ts — Playwright E2E config (PR#42): mobile project 375x812, baseURL docker-dind:8080, webServer off, workers 1
 dependencies: [backend]
-last_updated: 2026-07-20 (PR#42)
+last_updated: 2026-07-21 (PR#58)
 ---
 
 # frontend — web/
@@ -56,12 +58,14 @@ web/
     ├── app.css           # @tailwind base/components/utilities + html,body height:100% + font-smoothing
     ├── app.d.ts          # App.Locals.user: string | null, App.PageData.user?, App.Error, App.PageStore
     ├── lib/
-    │   ├── api.ts        # fetch wrapper: credentials:include, ApiError, 401→goto login, api={get,post,put,patch,del}
+    │   ├── api.ts        # fetch wrapper: credentials:include, ApiError, 401→goto login, api={get,post,put,patch,del}; PR#58: previewReplace/listPatterns/createPattern/deletePattern + typed replaceLink wrapper
     │   ├── ws.ts         # WebSocketClient: auto-reconnect (1s→30s backoff), heartbeat (25s/30s), cookie auth
-    │   ├── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, WsEventType, WsEventPayload, JobStatus, ReplaceLinkRequest={pattern, new_link, limit} (PR#36 — post_urls убран)
+    │   ├── types.ts      # TS types mirroring backend Pydantic: Channel, Job, Log, WsEvent, WsEventPayload, JobStatus, ReplaceLinkRequest={pattern, new_link, limit, mode, keep_tail} (PR#58: +ReplaceMode, PreviewRequest/Item/Response, PatternResponse/ListResponse/CreateRequest)
     │   └── components/
     │       ├── ChannelForm.svelte      # add channel form: $state telegramId/title/username, $derived canSubmit, POST /api/channels → onSaved(channel); PR#38 primary submit py-2.5 (≥44px touch target)
-    │       └── ReplaceLinkForm.svelte  # replace-link form (PR#36): $state pattern/newLink/limit(default 100), $derived limitValid (1..1000) + canSubmit, $effect regex validation (try new RegExp), number input (min 1, max 1000, step 1) вместо textarea URLs, POST /api/channels/{id}/replace-link с body {pattern, new_link, limit} → goto /jobs/{id}; PR#38 primary submit py-2.5 (≥44px touch target)
+    │       ├── ReplaceLinkForm.svelte   # PR#58 редизайн: 3 таба (Simple/Library/Advanced) via role="tablist". Simple: input с placeholder `https://t.me/bot?start=flow-*`. Library: <select> из listPatterns() (lazy load через $effect) + кнопка "Управление паттернами". Advanced: raw regex input (без frontend-валидации). Общее: "Заменить на", keep_tail checkbox, Limit 1..1000, "Предпросмотр"+"Запустить". effectivePattern=$derived. onPreview callback, runSignal prop (nonce) для триггера submit из PreviewModal. PR#36 limit, PR#38 touch target py-2.5
+    │       ├── PreviewModal.svelte      # PR#58: modal role="dialog". Props: previews, totalMatches, compiledPattern, onRun, onEdit. Список пар before→after (post #id + text), compiled_pattern мелким. Кнопки "Изменить pattern" (onEdit) | "Запустить job" (onRun)
+    │       └── PatternLibrary.svelte    # PR#58: modal CRUD. Загрузка listPatterns() на mount, форма добавления (name, pattern, description) через createPattern(), удаление (!is_builtin только) через deletePattern() с window.confirm. onPatternsChanged callback → родитель перезагружает
     ├── routes/
     │   ├── +layout.svelte  # app shell: sidebar (Channels + Jobs nav, active state via page.url.pathname.startsWith), header (username), mobile bottom nav (grid-cols-2 PR#38, иконки text-xl, лейблы text-xs, py-3 ≥44px touch target); Svelte 5 runes
     │   ├── +layout.ts     # LayoutLoad auth guard: GET /api/auth/me, 401→redirect(303,/login?redirectTo=...); prerender=false, ssr=false
@@ -73,7 +77,7 @@ web/
     │   │   ├── +page.svelte      # channels list: dual-layout PR#38 — table (hidden sm:block, title/telegram_id/active badge/delete) + cards (sm:hidden, title link + active badge + dl telegram_id/username + delete); empty state, Add channel button (toggle inline ChannelForm), row link → /channels/{id}; $derived.by merge load+localRefresh
     │   │   ├── +page.ts         # PageLoad: GET /api/channels → {channels, total}
     │   │   └── [id]/
-    │   │       ├── +page.svelte  # channel detail: header (title/telegram_id/is_active badge/username), ReplaceLinkForm, "Run history" table (last 5 jobs), link to /jobs; statusClass(status) helper
+    │   │       ├── +page.svelte  # channel detail: header (title/telegram_id/is_active badge/username), ReplaceLinkForm (PR#58: onPreview callback + runSignal prop), "Run history" table (last 5 jobs), link to /jobs; statusClass(status) helper; PR#58: PreviewModal рендерится при preview !== null, onRun → preview=null; runNonce+=1
     │   │       └── +page.ts      # PageLoad: GET /api/channels/{id} + GET /api/jobs?channel_id={id}&limit=5 → {channel, recentJobs}; 404→redirect(303,/channels)
     │   └── jobs/
     │       ├── +page.svelte      # jobs list: dual-layout PR#38 — table (hidden sm:block, id/channel title/pattern/status badge/progress edited/total/created_at) + cards (sm:hidden, #id link + status badge + dl channel/pattern truncate/progress/created); status filter dropdown, auto-refresh 5s if hasRunning ($effect+setInterval+cleanup), channelsById Map lookup
@@ -86,7 +90,7 @@ web/
         ├── LayoutHarness.svelte  # обёртка для +layout.svelte в тестах (передаёт data, рендерит child slot)
         ├── login.test.ts         # 3 теста: form render, submit+redirect, 401 error
         ├── channels.test.ts      # 9 тестов: 3 rows/empty/delete + 3 Add button (open/submit+refresh/cancel) + 3 ChannelForm (disabled/enabled/onSaved)
-        ├── replace-link.test.ts  # 6 тестов PR#36: disabled when empty, disabled when pattern empty, invalid regex error, disabled when limit out of range (0/1001), default limit 100, submits with {pattern, new_link, limit}+redirects
+        ├── replace-link.test.ts  # PR#58: 8 тестов (rewrite под 3-mode UI): disable submit when empty/new-link empty, enable submit when simple fields filled, limit validation, default limit 100, submit с mode/keep_tail, keep_tail=true checkbox, Advanced mode switch. Mock replaceLink (НЕ api.post напрямую). PR#36: было 6 тестов (disabled/invalid-regex/limit/default/submit)
         ├── jobs.test.ts          # 5 тестов: render header/status/progress/logs, cancel POST, WS progress updates, WS completed refetches logs, WS ignores other job_ids
         ├── layout.test.ts        # 3 теста: Channels nav, Logout button, username display
         ├── api.test.ts           # 2 теста: query serialization, ApiError on non-ok
@@ -126,3 +130,6 @@ web/
 - **Touch targets ≥44px на primary кнопках** (PR#38) — primary submit кнопки `py-2` → `py-2.5` (~44px height): ChannelForm Save, ReplaceLinkForm "Run replace-link", job detail "Cancel job". Apple HIG / Material минимум 44px. Secondary кнопки (Delete, Add channel, Cancel в ChannelForm, Back to jobs) — БЕЗ изменений (≥36px ок для secondary actions). `py-2.5` = 10px+10px padding + ~20px text = ~40px, с border/line-height ~44px.
 - **Job detail header `flex-col sm:flex-row`** (PR#38) — "Channel: #X · Pattern: Y" разбит на два `<span>` (был один text блок с `·` разделителем). `flex-col space-y-1 sm:flex-row sm:space-y-0 sm:gap-3` — mobile в столбец, desktop в строку через gap. `·` разделитель убран.
 - **Playwright E2E** (PR#42) — `web/playwright.config.ts` в корне `web/` (НЕ в `src/`), `testDir: ./tests/e2e`. Mobile project (375x812, iPhone SE-like). `baseURL: http://docker-dind:8080` (nginx, контейнеры running, webServer отключён). `workers: 1`, `fullyParallel: false` (sequential — общий running backend). `@playwright/test` в devDependencies. Scripts `test:e2e`/`test:e2e:mobile`. `.gitignore`: `test-results/`, `playwright-report/`, `playwright/.cache/`. Подробности — см. [tests.md](tests.md) E2E секция.
+- **Three replace modes + Preview UI** (PR#58) — `ReplaceLinkForm` редизайн: 3 таба (Simple/Library/Advanced) через `role="tablist"`. **Dumb frontend** — НЕ делает конвертацию `*`→regex, экранирование, валидацию regex, логику keep_tail (всё в backend PR#56). Frontend только отображает и дёргает endpoints. `effectivePattern = $derived` для library mode (берёт `selectedPattern.pattern`) vs simple/advanced (берёт `trimmedPattern`). `onPreview` callback передаёт `PreviewResponse` родителю. `runSignal: { nonce: number }` prop + `$effect` в форме — триггер `submitJob()` из PreviewModal (Svelte 5 не expose методы, декларативный паттерн). Lazy load patterns через `$effect` с guard `patterns === null` (только при первом переключении на Library tab). `onPatternsChanged` callback сбрасывает `patterns = null` → перезагрузка. Biome import order: component import ДО type import в Svelte `<script>`.
+- **PreviewModal onRun ordering** (PR#58) — `preview = null` BEFORE `runNonce += 1` (сначала закрываем модалку, потом триггерим submit). Если наоборот — `$effect` в форме может не сработать (race с unmount).
+- **Backend-only regex validation** (PR#58) — старый UI делал `new RegExp()` в `$effect` (live error). Новый UI убрал — backend возвращает 422, frontend показывает в error-блоке после submit/preview. Соответствует "dumb frontend" спеке. Минус: пользователь видит ошибку позже (после submit, не live).

@@ -73,10 +73,55 @@ export type LogListResponse = {
   total: number;
 };
 
+export type ReplaceMode = "simple" | "library" | "advanced";
+
 export type ReplaceLinkRequest = {
   pattern: string;
   new_link: string;
   limit: number;
+  mode: ReplaceMode;
+  keep_tail: boolean;
+};
+
+export type PreviewRequest = {
+  pattern: string;
+  new_link: string;
+  mode: ReplaceMode;
+  keep_tail: boolean;
+  limit: number;
+};
+
+export type PreviewItem = {
+  message_id: number;
+  before: string;
+  after: string;
+  match_source: "text" | "entity";
+};
+
+export type PreviewResponse = {
+  previews: PreviewItem[];
+  total_matches: number;
+  compiled_pattern: string;
+};
+
+export type PatternResponse = {
+  id: number;
+  name: string;
+  pattern: string;
+  description: string | null;
+  is_builtin: boolean;
+  created_at: string;
+};
+
+export type PatternListResponse = {
+  patterns: PatternResponse[];
+  total: number;
+};
+
+export type PatternCreateRequest = {
+  name: string;
+  pattern: string;
+  description?: string;
 };
 
 export type WsEventType = "job_started" | "progress" | "completed" | "failed" | "cancelled";
