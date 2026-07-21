@@ -36,8 +36,8 @@ vi.mock("$app/state", () => ({
   page: { url: new URL("http://localhost/channels/1"), data: {} },
 }));
 
-import ReplaceLinkForm from "../lib/components/ReplaceLinkForm.svelte";
 import { replaceLink } from "../lib/api";
+import ReplaceLinkForm from "../lib/components/ReplaceLinkForm.svelte";
 
 beforeEach(() => {
   mockPost.mockReset();
