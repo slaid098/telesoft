@@ -1,11 +1,11 @@
 ---
-pr: <PR-NUMBER>
+pr: 58
 issue: 57
 status: Accepted
 created: 2026-07-21
 ---
 
-# ADR — PR <PR-NUMBER>: three replace modes + preview UI
+# ADR — PR 58: three replace modes + preview UI
 
 ## Статус
 
@@ -57,4 +57,4 @@ PR#56 (merged) добавил backend: pattern compiler (simple mode `*` → `.*
 - PreviewModal — dry-run без edit в Telegram (backend `preview_replace` pure function). Безопасно для частых вызовов.
 - `replace-link.test.ts` переписан (8 тестов вместо 6) — старые тесты не работают с новым UI. Mock `replaceLink` вместо `api.post`.
 - E2E тесты (PR#42) могут падать на новом UI — нужно проверить и обновить отдельно (не в этом PR).
-- ADR pointer: ADR принят для three replace modes + preview UI → `docs/decisions/2026-07-21-pr-<PR-NUMBER>-three-modes-ui.md` (альтернативы: `runSignal` vs `bind:this`, frontend regex validation vs backend-only, tabs vs radio vs select, PatternLibrary separate vs inline, lazy vs eager load, Russian vs English labels, show vs hide compiled_pattern).
+- ADR pointer: ADR принят для three replace modes + preview UI → `docs/decisions/2026-07-21-pr-58-three-modes-ui.md` (альтернативы: `runSignal` vs `bind:this`, frontend regex validation vs backend-only, tabs vs radio vs select, PatternLibrary separate vs inline, lazy vs eager load, Russian vs English labels, show vs hide compiled_pattern).

@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 58
 issue: 57
 branch: feat/web/three-modes-preview-ui
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR-NUMBER>: three replace modes + preview UI
+# Handoff — PR 58: three replace modes + preview UI
 
 ## Что сделано
 
