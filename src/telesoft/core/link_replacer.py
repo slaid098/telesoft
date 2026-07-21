@@ -16,6 +16,7 @@ Provides:
 
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -23,6 +24,8 @@ from typing import Any
 from loguru import logger
 
 from telesoft.core import telegram as telegram_module
+
+_PREVIEW_CONTEXT = 50
 
 
 def validate_pattern(pattern: str) -> str:
@@ -50,6 +53,49 @@ def _entity_urls(message: Any) -> list[str]:
     """Return ``MessageEntityTextUrl`` urls carried by *message*."""
     entities = getattr(message, "entities", None) or []
     return [e.url for e in entities if hasattr(e, "url")]
+
+
+def _adjust_entity_offsets(
+    entities: list[Any],
+    text: str,
+    pattern: str,
+    new_link: str,
+) -> list[Any]:
+    """Return copies of *entities* with adjusted offset/length after substitution.
+
+    For every match of *pattern* in *text* the replacement swaps ``len(match)``
+    characters for ``len(new_link)`` characters, producing a ``delta`` of
+    ``len(new_link) - len(match)``. Each entity is then adjusted:
+
+    - matches strictly before the entity → shift ``entity.offset`` by the
+      cumulative delta
+    - matches strictly inside the entity → grow/shrink ``entity.length`` by
+      the per-match delta
+    - matches crossing the entity boundary → leave the entity untouched
+      (edge case; rare and ambiguous)
+
+    The original entities are NOT mutated — each returned entry is a fresh
+    copy (``copy.copy``) with updated ``offset``/``length``. When *pattern*
+    does not match *text*, *entities* is returned as-is (still copied).
+    """
+    matches = list(re.finditer(pattern, text))
+    adjusted: list[Any] = []
+    for entity in entities:
+        new_entity = copy.copy(entity)
+        e_offset = int(getattr(new_entity, "offset", 0))
+        e_length = int(getattr(new_entity, "length", 0))
+        e_end = e_offset + e_length
+        shift = 0
+        for m in matches:
+            m_start, m_end = m.start(), m.end()
+            if m_end <= e_offset:
+                shift += len(new_link) - (m_end - m_start)
+            elif m_start >= e_offset and m_end <= e_end:
+                e_length += len(new_link) - (m_end - m_start)
+        new_entity.offset = e_offset + shift
+        new_entity.length = e_length
+        adjusted.append(new_entity)
+    return adjusted
 
 
 async def replace_link_in_post(
@@ -103,7 +149,15 @@ async def replace_link_in_post(
                 message_id,
                 text_count,
             )
-            await telegram_module.edit_message(chat_id, message_id, new_text)
+            adjusted_entities = (
+                _adjust_entity_offsets(entities, text, pattern, new_link) if entities else None
+            )
+            await telegram_module.edit_message(
+                chat_id,
+                message_id,
+                new_text,
+                formatting_entities=adjusted_entities,
+            )
             return {
                 "success": True,
                 "edited": True,
@@ -208,19 +262,26 @@ def _preview_one(
 
     Replicates the match-source selection of :func:`replace_link_in_post`
     (text path wins over entity path) but operates purely in memory — no
-    Telethon edit call is made. ``before``/``after`` carry only the matched
-    link text (not the full post), as required by issue #55.
+    Telethon edit call is made. For text matches ``before``/``after`` carry
+    a window of up to ``_PREVIEW_CONTEXT`` characters on each side of the
+    first match (so the user sees context, not the entire post). For entity
+    matches, ``before``/``after`` carry only the URL (issue #55 / #63).
     """
     message_id = int(message.id)
     text = getattr(message, "text", None) or ""
-    text_matches = regex.findall(text)
-    if text_matches:
-        new_text, count = replace_link(text, pattern, new_link)
+    text_match = regex.search(text)
+    if text_match:
+        _, count = replace_link(text, pattern, new_link)
         if count > 0:
+            start = text_match.start()
+            end = text_match.end()
+            context_before = text[max(0, start - _PREVIEW_CONTEXT) : start]
+            matched_link = text[start:end]
+            context_after = text[end : end + _PREVIEW_CONTEXT]
             return {
                 "message_id": message_id,
-                "before": text,
-                "after": new_text,
+                "before": context_before + matched_link + context_after,
+                "after": context_before + new_link + context_after,
                 "match_source": "text",
             }
     matching_entities = [
@@ -253,9 +314,11 @@ async def preview_replace(
         {"previews": [{"message_id", "before", "after", "match_source"}],
          "total_matches": N}
 
-    ``before``/``after`` carry only the matched link text, not the full post
-    body. ``total_matches`` is the full number of matching messages (not
-    capped by *limit*) so the caller can show "showing 3 of N".
+    For text matches, ``before``/``after`` carry up to 50 characters of
+    context on each side of the first match (so short posts are returned
+    in full). For entity matches, only the URL is shown. ``total_matches``
+    is the full number of matching messages (not capped by *limit*) so the
+    caller can show "showing 3 of N".
     """
     regex = re.compile(pattern)
     matching = await find_posts_with_pattern(messages, pattern)

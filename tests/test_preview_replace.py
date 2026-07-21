@@ -86,12 +86,45 @@ async def test_preview_replace_skips_non_matching_messages() -> None:
 
 
 async def test_preview_replace_before_after_carry_link_only_for_text() -> None:
-    """For text matches, before/after are the full text (link embedded)."""
+    """For text matches, before/after carry a 50-char context window around the link."""
     msg = MockMessage(id=1, text="visit https://old.example.com today", chat_id=-100)
     result = await preview_replace([msg], _PATTERN, _NEW_LINK)
     entry = result["previews"][0]
+    # Short post (< 100 chars) → context window covers the whole post
     assert entry["before"] == "visit https://old.example.com today"
     assert entry["after"] == f"visit {_NEW_LINK} today"
+
+
+async def test_preview_replace_text_window_caps_at_50_chars_context() -> None:
+    """Long posts show 50 chars before + matched link + 50 chars after, not the full post."""
+    prefix = "x" * 80
+    suffix = "y" * 80
+    text = f"{prefix} https://old.example.com {suffix}"
+    msg = MockMessage(id=2, text=text, chat_id=-100)
+    result = await preview_replace([msg], _PATTERN, _NEW_LINK)
+    entry = result["previews"][0]
+    # 50 chars before + matched link + 50 chars after
+    expected_len = 50 + len("https://old.example.com") + 50
+    assert len(entry["before"]) == expected_len
+    # context window starts 50 chars before the match — the space between the
+    # prefix and the link lands at position 80, so the first 49 chars are "x"
+    # and the 50th is the space.
+    assert entry["before"].startswith("x" * 49 + " ")
+    assert entry["before"].endswith(" " + "y" * 49)
+    assert "https://old.example.com" in entry["before"]
+    # after swaps in the new link
+    assert _NEW_LINK in entry["after"]
+    assert entry["after"].endswith(" " + "y" * 49)
+
+
+async def test_preview_replace_short_post_shown_in_full() -> None:
+    """Post shorter than 100 chars → before/after is the whole post (natural result)."""
+    text = "see https://old.example.com here"
+    msg = MockMessage(id=3, text=text, chat_id=-100)
+    result = await preview_replace([msg], _PATTERN, _NEW_LINK)
+    entry = result["previews"][0]
+    assert entry["before"] == text
+    assert entry["after"] == f"see {_NEW_LINK} here"
 
 
 async def test_preview_replace_mixed_messages_preserves_order() -> None:
