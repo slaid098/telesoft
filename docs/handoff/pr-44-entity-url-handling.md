@@ -1,12 +1,12 @@
 ---
-pr: <PR_NUMBER>
+pr: 44
 issue: 43
 branch: fix/api/entity-url-handling
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR_NUMBER>: handle URL entities in messages and add integration tests
+# Handoff — PR 44: handle URL entities in messages and add integration tests
 
 ## Что сделано
 

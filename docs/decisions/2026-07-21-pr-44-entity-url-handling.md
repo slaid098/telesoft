@@ -1,4 +1,4 @@
-# ADR — PR <PR_NUMBER>: handle URL entities in messages and add integration tests
+# ADR — PR 44: handle URL entities in messages and add integration tests
 
 ## Статус
 
