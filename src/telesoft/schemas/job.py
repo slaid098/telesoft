@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from telesoft.db.models import JobRow, LogRow
+from telesoft.db.models import JobRow, LogRow, PatternRow
 
 
 def now_iso() -> str:
@@ -19,11 +19,82 @@ class ReplaceLinkRequest(BaseModel):
     The backend auto-discovers the last ``limit`` channel posts via
     :func:`telesoft.core.telegram.get_last_messages` and filters them by
     ``pattern`` — the caller no longer collects post URLs manually.
+
+    ``mode`` selects how *pattern* is interpreted (``"simple"`` wildcards,
+    ``"library"`` / ``"advanced"`` raw regex). ``keep_tail`` strips a
+    trailing ``-s-*`` segment so it survives the replacement.
     """
 
     pattern: str
     new_link: str
     limit: int = Field(default=100, ge=1, le=1000)
+    mode: str = "advanced"
+    keep_tail: bool = False
+
+
+class PreviewRequest(BaseModel):
+    """Payload for ``POST /api/channels/{id}/preview-replace``."""
+
+    pattern: str
+    new_link: str
+    mode: str = "advanced"
+    keep_tail: bool = False
+    limit: int = Field(default=100, ge=1, le=1000)
+
+
+class PreviewItem(BaseModel):
+    """A single ``before -> after`` preview pair."""
+
+    message_id: int
+    before: str
+    after: str
+    match_source: str
+
+
+class PreviewResponse(BaseModel):
+    """Response for ``POST /api/channels/{id}/preview-replace``."""
+
+    previews: list[PreviewItem]
+    total_matches: int
+    compiled_pattern: str
+
+
+class PatternCreateRequest(BaseModel):
+    """Payload for ``POST /api/patterns`` (custom patterns only)."""
+
+    name: str
+    pattern: str
+    description: str | None = None
+
+
+class PatternResponse(BaseModel):
+    """Pattern library entry returned by the API."""
+
+    id: int
+    name: str
+    pattern: str
+    description: str | None
+    is_builtin: bool
+    created_at: str
+
+    @classmethod
+    def from_row(cls, row: PatternRow) -> "PatternResponse":
+        """Build a ``PatternResponse`` from a raw DB row (dict-like)."""
+        return cls(
+            id=int(row["id"]),
+            name=str(row["name"]),
+            pattern=str(row["pattern"]),
+            description=row["description"],
+            is_builtin=bool(row["is_builtin"]),
+            created_at=str(row["created_at"]),
+        )
+
+
+class PatternListResponse(BaseModel):
+    """List response with patterns and total count."""
+
+    patterns: list[PatternResponse]
+    total: int
 
 
 class JobResponse(BaseModel):

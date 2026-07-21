@@ -11,6 +11,7 @@ from telesoft.config import Settings
 from telesoft.db.models import channel as channel_model
 from telesoft.db.models import job as job_model
 from telesoft.db.models import log as log_model
+from telesoft.db.models import pattern as pattern_model
 
 
 @dataclass
@@ -49,10 +50,12 @@ async def _create_schema(db: aiosqlite.Connection) -> None:
         channel_model._CREATE_SQL,
         job_model._CREATE_SQL,
         log_model._CREATE_SQL,
+        pattern_model._CREATE_SQL,
     ]
     indexes: list[str] = list(channel_model._CREATE_INDEXES_SQL)
     indexes.extend(job_model._CREATE_INDEXES_SQL)
     indexes.extend(log_model._CREATE_INDEXES_SQL)
+    indexes.extend(pattern_model._CREATE_INDEXES_SQL)
     for statement in statements:
         await db.execute(statement)
     for index in indexes:

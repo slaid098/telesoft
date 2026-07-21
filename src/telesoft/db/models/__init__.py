@@ -23,23 +23,35 @@ from telesoft.db.models.log import (
     delete_logs,
     list_logs,
 )
+from telesoft.db.models.pattern import (
+    PatternRow,
+    create_pattern,
+    delete_pattern,
+    get_pattern,
+    list_patterns,
+)
 
 __all__ = [
     "ChannelRow",
     "JobRow",
     "LogRow",
+    "PatternRow",
     "create_channel",
     "create_job",
     "create_log",
+    "create_pattern",
     "delete_channel",
     "delete_job",
     "delete_logs",
+    "delete_pattern",
     "get_channel",
     "get_channel_by_telegram_id",
     "get_job",
+    "get_pattern",
     "list_channels",
     "list_jobs",
     "list_logs",
+    "list_patterns",
     "update_channel",
     "update_job_status",
 ]

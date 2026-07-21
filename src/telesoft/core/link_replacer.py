@@ -199,3 +199,70 @@ async def replace_link_in_posts(
         if on_progress is not None:
             await on_progress(edited, failed, total)
     return {"total": total, "edited": edited, "failed": failed, "skipped": skipped}
+
+
+def _preview_one(
+    message: Any, regex: re.Pattern[str], pattern: str, new_link: str
+) -> dict[str, Any] | None:
+    """Build a single preview entry for *message* or ``None`` if no match.
+
+    Replicates the match-source selection of :func:`replace_link_in_post`
+    (text path wins over entity path) but operates purely in memory — no
+    Telethon edit call is made. ``before``/``after`` carry only the matched
+    link text (not the full post), as required by issue #55.
+    """
+    message_id = int(message.id)
+    text = getattr(message, "text", None) or ""
+    text_matches = regex.findall(text)
+    if text_matches:
+        new_text, count = replace_link(text, pattern, new_link)
+        if count > 0:
+            return {
+                "message_id": message_id,
+                "before": text,
+                "after": new_text,
+                "match_source": "text",
+            }
+    matching_entities = [
+        e
+        for e in (getattr(message, "entities", None) or [])
+        if hasattr(e, "url") and regex.search(e.url)
+    ]
+    if matching_entities:
+        return {
+            "message_id": message_id,
+            "before": matching_entities[0].url,
+            "after": new_link,
+            "match_source": "entity",
+        }
+    return None
+
+
+async def preview_replace(
+    messages: list[Any],
+    pattern: str,
+    new_link: str,
+    limit: int = 3,
+) -> dict[str, Any]:
+    """Dry-run replacement preview without editing Telegram.
+
+    Filters *messages* via :func:`find_posts_with_pattern`, takes the first
+    ``limit`` matches, and for each one computes the ``before``/``after`` link
+    text in memory (no Telethon edits). Returns::
+
+        {"previews": [{"message_id", "before", "after", "match_source"}],
+         "total_matches": N}
+
+    ``before``/``after`` carry only the matched link text, not the full post
+    body. ``total_matches`` is the full number of matching messages (not
+    capped by *limit*) so the caller can show "showing 3 of N".
+    """
+    regex = re.compile(pattern)
+    matching = await find_posts_with_pattern(messages, pattern)
+    total_matches = len(matching)
+    previews: list[dict[str, Any]] = []
+    for message in matching[:limit]:
+        entry = _preview_one(message, regex, pattern, new_link)
+        if entry is not None:
+            previews.append(entry)
+    return {"previews": previews, "total_matches": total_matches}

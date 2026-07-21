@@ -13,7 +13,7 @@ key_files:
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-21
+last_updated: 2026-07-21 (PR#56)
 ---
 
 # telesoft — Project Map
@@ -85,11 +85,11 @@ telesoft/
 
 ## Module index
 
-- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,ws}}, schemas/{auth,channel,job})
+- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,pattern_compiler,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,patterns,ws}}, schemas/{auth,channel,job})
 - [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts + components/, routes/{+layout,+page,login,channels,jobs}, tests)
 - [docker.md](docker.md) — `docker-compose.yml` (3 services: api + web + nginx), `Dockerfile.api`, `Dockerfile.nginx`, `web/Dockerfile.web`, `nginx.conf`, `.env.example`, `.dockerignore`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
-- [tests.md](tests.md) — `tests/` (backend unit tests + integration tests PR#44, 122 unit + 4 integration opt-in), `web/src/tests/` (frontend 26 tests: login 3, channels 9, replace-link 4, jobs 5, layout 3, api 2)
+- [tests.md](tests.md) — `tests/` (backend unit tests + integration tests PR#44, 184 unit PR#56 + 4 integration opt-in), `web/src/tests/` (frontend 26 tests: login 3, channels 9, replace-link 4, jobs 5, layout 3, api 2)
 - [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC + smoke test, НЕ часть backend)
 
 ## Patterns
@@ -124,6 +124,7 @@ telesoft/
 - [PR#46 — StringSession instead of file session](../decisions/2026-07-21-pr-46-string-session.md)
 - [PR#48 — TELEGRAM_SESSION_STRING env var (supersedes PR#46)](../decisions/2026-07-21-pr-48-session-string.md)
 - [PR#54 — merge compose files for production](../decisions/2026-07-21-pr-54-production-compose.md)
+- [PR#56 — pattern compiler + preview + pattern library](../decisions/2026-07-21-pr-56-pattern-compiler.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -142,3 +143,4 @@ telesoft/
 - [PR#46 — StringSession instead of file session](../handoff/pr-46-string-session.md)
 - [PR#48 — TELEGRAM_SESSION_STRING env var (supersedes PR#46)](../handoff/pr-48-session-string.md)
 - [PR#54 — merge compose files for production](../handoff/pr-54-production-compose.md)
+- [PR#56 — pattern compiler + preview + pattern library](../handoff/pr-56-pattern-compiler.md)
