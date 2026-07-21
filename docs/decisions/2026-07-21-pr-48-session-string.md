@@ -1,12 +1,12 @@
 ---
-pr: PLACEHOLDER
+pr: 48
 issue: 47
 status: Accepted
 created: 2026-07-21
 supersedes: 2026-07-21-pr-46-string-session.md (session storage decision)
 ---
 
-# ADR — PR PLACEHOLDER: add TELEGRAM_SESSION_STRING to prevent FloodWait on restart
+# ADR — PR 48: add TELEGRAM_SESSION_STRING to prevent FloodWait on restart
 
 ## Статус
 

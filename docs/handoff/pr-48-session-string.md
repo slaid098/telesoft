@@ -1,5 +1,5 @@
 ---
-pr: PLACEHOLDER
+pr: 48
 issue: 47
 branch: fix/api/session-string-env
 status: ready
@@ -7,7 +7,7 @@ created: 2026-07-21
 supersedes: pr-46-string-session.md
 ---
 
-# Handoff — PR PLACEHOLDER: add TELEGRAM_SESSION_STRING to prevent FloodWait on restart
+# Handoff — PR 48: add TELEGRAM_SESSION_STRING to prevent FloodWait on restart
 
 ## Что сделано
 
@@ -90,7 +90,7 @@ Fallback на `StringSession()` сохранён для:
 - Local dev без `TELEGRAM_SESSION_STRING` (первый запуск авторизуется через `bot_token`, после — генерирует строку через `StringSession.save('app_data/bot.session')` и кладёт в `.env`).
 - Tests (unit tests не используют real Telegram, integration tests могут задать или не задать — оба варианта работают).
 
-ADR `docs/decisions/2026-07-21-pr-46-string-session.md` (Status=Accepted, "bot-token auth мгновенная") — superseded этим PR. Новый ADR `docs/decisions/2026-07-21-pr-PLACEHOLDER-session-string.md` (Status=Accepted, `TELEGRAM_SESSION_STRING`).
+ADR `docs/decisions/2026-07-21-pr-46-string-session.md` (Status=Accepted, "bot-token auth мгновенная") — superseded этим PR. Новый ADR `docs/decisions/2026-07-21-pr-48-session-string.md` (Status=Accepted, `TELEGRAM_SESSION_STRING`).
 
 ## Pending
 
@@ -107,4 +107,4 @@ ADR `docs/decisions/2026-07-21-pr-46-string-session.md` (Status=Accepted, "bot-t
 - **Secret management**: `TELEGRAM_SESSION_STRING` — sensitive (содержит auth_key). НЕ коммитить в git. `.env` в `.gitignore` (всегда). Если утёк — `revoke.py` Telegram session через `@BotFather` → `/revoke` (но это отзывает bot token, не session string; для session string — terminate session через Telegram app settings).
 - **Pre-existing uncommitted changes**: `Dockerfile.api` (`PYTHONPATH=/app/src`, `COPY tests/`, `COPY README.md`) и `docker-compose.yml` (`Dockerfile.web` path fix) существовали в working tree до этого PR. НЕ включены в коммиты (отдельная задача, как в PR#46). Untracked `Dockerfile.nginx` / `docker-compose.preview.yml` / `nginx.preview.conf` — также НЕ включены.
 - **`_reset_telegram_state` fixture добавлен в этот PR** (не в PR#46) — без него integration tests падали на втором тесте (Telethon client reuse across loops). Этот фикс решает pre-existing bug, но сделан в этом PR т.к. без него integration tests не green (acceptance criteria PR#47).
-- **ADR PR#46 superseded, НЕ mutated** — `docs/decisions/2026-07-21-pr-46-string-session.md` остаётся как immutable record (Status=Accepted на момент создания). Новый ADR `docs/decisions/2026-07-21-pr-PLACEHOLDER-session-string.md` документирует пересмотр. Старый ADR НЕ обновляется (ADR — immutable, паттерн из PR#16 → PR#46).
+- **ADR PR#46 superseded, НЕ mutated** — `docs/decisions/2026-07-21-pr-46-string-session.md` остаётся как immutable record (Status=Accepted на момент создания). Новый ADR `docs/decisions/2026-07-21-pr-48-session-string.md` документирует пересмотр. Старый ADR НЕ обновляется (ADR — immutable, паттерн из PR#16 → PR#46).
