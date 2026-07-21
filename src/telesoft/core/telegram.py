@@ -20,8 +20,7 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError, RPCError
 from telethon.sessions import StringSession
 from telethon.tl.functions.channels import GetMessagesRequest as ChannelsGetMessagesRequest
-from telethon.tl.functions.messages import EditMessageRequest as MessagesEditMessageRequest
-from telethon.tl.types import InputChannel, InputPeerChannel, Message
+from telethon.tl.types import InputChannel, Message
 
 from telesoft.config import Settings
 
@@ -50,6 +49,11 @@ async def get_client() -> TelegramClient:
             settings.telegram_api_id,
             settings.telegram_api_hash,
             receive_updates=False,
+            flood_sleep_threshold=100,
+            auto_reconnect=True,
+            connection_retries=100,
+            retry_delay=5,
+            entity_cache_limit=1000,
         )
     return _state.client
 
@@ -101,33 +105,44 @@ async def get_messages(chat_id: int, message_ids: list[int]) -> list[Message]:
 
 
 async def edit_message(chat_id: int, message_id: int, text: str) -> Message:
-    """Edit a single message text; propagates TelethonError on failure."""
+    """Edit a single message text; retries 3x on FloodWaitError."""
     client = await start_client()
-    return await client.edit_message(chat_id, message_id, text=text)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return await client.edit_message(chat_id, message_id, text=text)
+        except FloodWaitError as exc:
+            if attempt + 1 >= max_retries:
+                raise
+            await asyncio.sleep(exc.seconds + 1)
+    raise RuntimeError("unreachable")
 
 
-async def edit_message_entities(
-    chat_id: int, message_id: int, text: str, entities: list[Any]
-) -> Any:
-    """Edit message entities via raw API (messages.EditMessageRequest).
+async def edit_message_entities(chat_id: int, message: Any, entities: list[Any]) -> Any:
+    """Edit message entities via high-level ``client.edit_message``.
 
     Used when the URL lives inside a ``MessageEntityTextUrl`` entity (formatted
-    link) — the regular ``client.edit_message`` only updates ``message`` text
-    and would drop the URL entities. Returns the raw ``Updates`` result.
+    link) — the regular text-only ``edit_message`` path would drop the URL
+    entities. Mutating ``entity.url`` in-place (caller responsibility) and
+    passing ``formatting_entities`` lets Telethon resolve the channel peer
+    itself, eliminating the per-edit ``_get_channel_input`` / ``get_entity``
+    round-trip the raw ``MessagesEditMessageRequest`` path required.
     """
     client = await start_client()
-    channel_input = await _get_channel_input(chat_id)
-    peer = InputPeerChannel(
-        channel_id=channel_input.channel_id, access_hash=channel_input.access_hash
-    )
-    return await client(
-        MessagesEditMessageRequest(
-            peer=peer,
-            id=message_id,
-            message=text,
-            entities=entities,
-        )
-    )
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            return await client.edit_message(
+                chat_id,
+                message.id,
+                text=message.text or "",
+                formatting_entities=entities,
+            )
+        except FloodWaitError as exc:
+            if attempt + 1 >= max_retries:
+                raise
+            await asyncio.sleep(exc.seconds + 1)
+    raise RuntimeError("unreachable")
 
 
 async def resolve_entity(identifier: str | int) -> Any:

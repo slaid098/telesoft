@@ -42,6 +42,7 @@ def mock_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
         "JOBS_MAX_CONCURRENCY",
         "MAX_PROBE_ID",
         "TELEGRAM_REQUEST_DELAY",
+        "TELEGRAM_EDIT_DELAY",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -51,6 +52,7 @@ def mock_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("TELEGRAM_API_ID", "12345")
     monkeypatch.setenv("TELEGRAM_API_HASH", "test-hash")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.setenv("TELEGRAM_EDIT_DELAY", "0.0")
     return Settings.from_env()
 
 
@@ -227,7 +229,7 @@ def _install_runner(
 ) -> tuple[JobRunner, EventBus]:
     """Replace ``app.state.job_runner`` and ``app.state.event_bus`` for one test."""
     bus = EventBus()
-    runner = JobRunner(max_concurrency=2, event_bus=bus)
+    runner = JobRunner(max_concurrency=2, event_bus=bus, edit_delay=0.0, pre_edit_delay=0.0)
     runner.start()
     app.state.job_runner = runner
     app.state.event_bus = bus
@@ -237,7 +239,7 @@ def _install_runner(
 def _restore_default_runner() -> JobRunner:
     """Rebuild a default runner so subsequent fixtures/tests still work."""
     bus = EventBus()
-    runner = JobRunner(max_concurrency=3, event_bus=bus)
+    runner = JobRunner(max_concurrency=3, event_bus=bus, edit_delay=0.0, pre_edit_delay=0.0)
     runner.start()
     app.state.job_runner = runner
     app.state.event_bus = bus
@@ -253,7 +255,7 @@ def mock_runner() -> AsyncIterator[JobRunner]:
     prev_runner = getattr(app.state, "job_runner", None)
     prev_bus = getattr(app.state, "event_bus", None)
     bus = EventBus()
-    runner = JobRunner(max_concurrency=2, event_bus=bus)
+    runner = JobRunner(max_concurrency=2, event_bus=bus, edit_delay=0.0, pre_edit_delay=0.0)
     runner.start()
     app.state.job_runner = runner
     app.state.event_bus = bus

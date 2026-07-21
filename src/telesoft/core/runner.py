@@ -50,12 +50,16 @@ class JobRunner:
         *,
         max_concurrency: int = 3,
         event_bus: EventBus | None = None,
+        edit_delay: float = 5.0,
+        pre_edit_delay: float = 2.0,
     ) -> None:
         self._max_concurrency = max_concurrency
         self._semaphore: asyncio.Semaphore | None = None
         self._tasks: dict[int, asyncio.Task[None]] = {}
         self._event_bus = event_bus
         self._cancelled: set[int] = set()
+        self._edit_delay = edit_delay
+        self._pre_edit_delay = pre_edit_delay
 
     # ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -149,13 +153,15 @@ class JobRunner:
                 await self._publish(
                     Event(type="job_started", data={"job_id": job_id, "total": total})
                 )
+                if total > 0:
+                    await asyncio.sleep(self._pre_edit_delay)
                 edited = 0
                 failed = 0
                 for message in matching:
                     if job_id in self._cancelled:
                         raise asyncio.CancelledError  # noqa: TRY301
                     message_id = int(message.id)
-                    result = await replace_link_in_post(chat_id, message_id, pattern, new_link)
+                    result = await replace_link_in_post(chat_id, message, pattern, new_link)
                     if result.get("success"):
                         if result.get("edited"):
                             edited += 1
@@ -175,6 +181,8 @@ class JobRunner:
                             },
                         )
                     )
+                    if result.get("edited"):
+                        await asyncio.sleep(self._edit_delay)
             except asyncio.CancelledError:
                 await self._mark_final(job_id, "cancelled")
                 await self._publish(Event(type="cancelled", data={"job_id": job_id}))

@@ -7,8 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from telethon.errors import BadRequestError, FloodWaitError, RPCError
 from telethon.tl.functions.channels import GetMessagesRequest as ChannelsGetMessagesRequest
-from telethon.tl.functions.messages import EditMessageRequest as MessagesEditMessageRequest
-from telethon.tl.types import InputPeerChannel
 
 from telesoft.config import Settings
 from telesoft.core import telegram as telegram_module
@@ -77,34 +75,126 @@ async def test_edit_message_propagates_error(mock_telethon_client: AsyncMock) ->
         await edit_message(chat_id=-1001234567890, message_id=123, text="new text")
 
 
-async def test_edit_message_entities_invokes_raw_api(
+async def test_edit_message_retries_on_flood_wait(
+    mock_telethon_client: AsyncMock,
+    mock_message: MockMessage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """edit_message retries 3x on FloodWaitError, succeeds on second attempt."""
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
+    attempts = 0
+
+    def _side_effect(*_args: object, **_kwargs: object) -> object:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise FloodWaitError(request=None, capture=2)  # type: ignore[call-arg]
+        return mock_message
+
+    mock_telethon_client.edit_message.side_effect = _side_effect
+
+    result = await edit_message(chat_id=-1001234567890, message_id=123, text="new text")
+
+    assert result is mock_message
+    assert attempts == 2
+    flood_sleeps = [c for c in sleep_mock.await_args_list if c.args[0] == 3]
+    assert len(flood_sleeps) == 1
+
+
+async def test_edit_message_flood_wait_max_retries_exceeded(
     mock_telethon_client: AsyncMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """edit_message_entities resolves InputChannel, builds InputPeerChannel, invokes raw API."""
-    monkeypatch.setattr(
-        telegram_module,
-        "_get_channel_input",
-        AsyncMock(return_value=MagicMock(channel_id=1234567890, access_hash=777)),
+    """edit_message re-raises FloodWaitError after 3 attempts."""
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
+    mock_telethon_client.edit_message.side_effect = FloodWaitError(  # type: ignore[call-arg]
+        request=None, capture=2
     )
 
+    with pytest.raises(FloodWaitError):
+        await edit_message(chat_id=-1001234567890, message_id=123, text="new text")
+
+    assert mock_telethon_client.edit_message.await_count == 3
+    flood_sleeps = [c for c in sleep_mock.await_args_list if c.args[0] == 3]
+    assert len(flood_sleeps) == 2
+
+
+async def test_edit_message_entities_uses_high_level_api(
+    mock_telethon_client: AsyncMock,
+) -> None:
+    """edit_message_entities invokes ``client.edit_message(formatting_entities=...)``
+    instead of the raw ``MessagesEditMessageRequest`` API.
+    """
+    message = MagicMock()
+    message.id = 42
+    message.text = "hello"
     entities = [MagicMock()]
     result_mock = MagicMock()
-    mock_telethon_client.return_value = result_mock
+    mock_telethon_client.edit_message.return_value = result_mock
 
-    await edit_message_entities(
-        chat_id=-1001234567890, message_id=42, text="hello", entities=entities
+    result = await edit_message_entities(chat_id=-1001234567890, message=message, entities=entities)
+
+    assert result is result_mock
+    mock_telethon_client.edit_message.assert_awaited_once_with(
+        -1001234567890, 42, text="hello", formatting_entities=entities
     )
+    mock_telethon_client.assert_not_awaited()
 
-    mock_telethon_client.assert_awaited_once()
-    request = mock_telethon_client.await_args.args[0]
-    assert isinstance(request, MessagesEditMessageRequest)
-    assert request.id == 42
-    assert request.message == "hello"
-    assert request.entities is entities
-    assert isinstance(request.peer, InputPeerChannel)
-    assert request.peer.channel_id == 1234567890
-    assert request.peer.access_hash == 777
+
+async def test_edit_message_entities_retries_on_flood_wait(
+    mock_telethon_client: AsyncMock,
+    mock_message: MockMessage,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """edit_message_entities retries 3x on FloodWaitError, succeeds on second attempt."""
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
+    message = MagicMock()
+    message.id = 42
+    message.text = "hello"
+    entities = [MagicMock()]
+    attempts = 0
+
+    def _side_effect(*_args: object, **_kwargs: object) -> object:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise FloodWaitError(request=None, capture=2)  # type: ignore[call-arg]
+        return mock_message
+
+    mock_telethon_client.edit_message.side_effect = _side_effect
+
+    result = await edit_message_entities(chat_id=-1001234567890, message=message, entities=entities)
+
+    assert result is mock_message
+    assert attempts == 2
+    flood_sleeps = [c for c in sleep_mock.await_args_list if c.args[0] == 3]
+    assert len(flood_sleeps) == 1
+
+
+async def test_edit_message_entities_flood_wait_max_retries_exceeded(
+    mock_telethon_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """edit_message_entities re-raises FloodWaitError after 3 attempts."""
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
+    mock_telethon_client.edit_message.side_effect = FloodWaitError(  # type: ignore[call-arg]
+        request=None, capture=2
+    )
+    message = MagicMock()
+    message.id = 42
+    message.text = "hello"
+    entities = [MagicMock()]
+
+    with pytest.raises(FloodWaitError):
+        await edit_message_entities(chat_id=-1001234567890, message=message, entities=entities)
+
+    assert mock_telethon_client.edit_message.await_count == 3
+    flood_sleeps = [c for c in sleep_mock.await_args_list if c.args[0] == 3]
+    assert len(flood_sleeps) == 2
 
 
 async def test_resolve_entity(mock_telethon_client: AsyncMock) -> None:

@@ -23,7 +23,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_db()
     settings = Settings.from_env()
     event_bus = EventBus()
-    runner = JobRunner(max_concurrency=settings.jobs_max_concurrency, event_bus=event_bus)
+    runner = JobRunner(
+        max_concurrency=settings.jobs_max_concurrency,
+        event_bus=event_bus,
+        edit_delay=settings.telegram_edit_delay,
+        pre_edit_delay=2.0,
+    )
     runner.start()
     app.state.event_bus = event_bus
     app.state.job_runner = runner
