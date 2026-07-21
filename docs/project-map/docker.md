@@ -5,10 +5,10 @@ key_files:
   - docker-compose.yml — 2 services (api + web), telesoft-network bridge, api healthcheck on /health
   - Dockerfile.api — python:3.13-slim + uv sync (curl available for healthcheck)
   - Dockerfile.web — multi-stage build → adapter-node runtime
-  - .env.example — all env vars with placeholders (incl. JOBS_MAX_CONCURRENCY)
+  - .env.example — all env vars with placeholders (incl. JOBS_MAX_CONCURRENCY, TELEGRAM_SESSION_STRING PR#48)
   - .dockerignore — excludes .venv, caches, app_data
 dependencies: [backend, frontend]
-last_updated: 2026-07-20
+last_updated: 2026-07-21
 ---
 
 # docker — container orchestration
@@ -19,7 +19,7 @@ last_updated: 2026-07-20
 ├── docker-compose.yml   # services: api (healthcheck /health) + web (depends_on api healthy), telesoft-network bridge, json-file logging
 ├── Dockerfile.api       # python:3.13-slim, COPY --from=ghcr.io/astral-sh/uv:latest, uv sync --frozen --extra dev, CMD uvicorn (curl installed for healthcheck)
 ├── Dockerfile.web       # multi-stage: build (npm ci + npm run build) → runtime (node:20-slim, adapter-node, PORT=3000)
-├── .env.example         # ADMIN_USERNAME, ADMIN_PASSWORD, SECRET_KEY, HOST, PORT, LOG_LEVEL, DB_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_BOT_TOKEN, SESSION_PATH, JOBS_MAX_CONCURRENCY
+├── .env.example         # ADMIN_USERNAME, ADMIN_PASSWORD, SECRET_KEY, HOST, PORT, LOG_LEVEL, DB_PATH, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_BOT_TOKEN, TELEGRAM_SESSION_STRING (PR#48), SESSION_PATH, JOBS_MAX_CONCURRENCY
 └── .dockerignore        # исключает .venv, .mypy_cache, .pytest_cache, .ruff_cache, app_data, web/node_modules
 ```
 
