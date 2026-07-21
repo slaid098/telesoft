@@ -1,11 +1,11 @@
 ---
-pr: <PR-NUMBER>
+pr: 60
 issue: 59
 status: Accepted
 created: 2026-07-21
 ---
 
-# ADR — PR <PR-NUMBER>: seed built-in link patterns
+# ADR — PR 60: seed built-in link patterns
 
 ## Статус
 

@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 60
 issue: 59
 branch: feat/db/seed-builtin-patterns
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR-NUMBER>: seed built-in link patterns
+# Handoff — PR 60: seed built-in link patterns
 
 ## Что сделано
 
