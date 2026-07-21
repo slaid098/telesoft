@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from telesoft.api.routers.auth import router as auth_router
 from telesoft.api.routers.channels import router as channels_router
 from telesoft.api.routers.jobs import router as jobs_router
+from telesoft.api.routers.patterns import router as patterns_router
 from telesoft.api.routers.ws import router as ws_router
 from telesoft.config import Settings
 from telesoft.core.events import EventBus
@@ -56,6 +57,7 @@ app.add_middleware(SessionMiddleware, secret_key=Settings.from_env().secret_key)
 app.include_router(auth_router)
 app.include_router(channels_router)
 app.include_router(jobs_router)
+app.include_router(patterns_router)
 app.include_router(ws_router)
 
 

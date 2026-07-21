@@ -21,7 +21,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi import status as http_status
 
 from telesoft.api.auth import require_auth
-from telesoft.core.link_replacer import validate_pattern
+from telesoft.core import telegram as telegram_module
+from telesoft.core.link_replacer import preview_replace, validate_pattern
+from telesoft.core.pattern_compiler import compile_pattern
 from telesoft.core.runner import JobRunner
 from telesoft.db.connection import get_db
 from telesoft.db.models import channel as channel_model
@@ -32,6 +34,9 @@ from telesoft.schemas.job import (
     JobResponse,
     LogListResponse,
     LogResponse,
+    PreviewItem,
+    PreviewRequest,
+    PreviewResponse,
     ReplaceLinkRequest,
     now_iso,
 )
@@ -88,14 +93,24 @@ async def replace_link_endpoint(
 ) -> dict[str, Any]:
     """Launch a replace-link job for the given channel.
 
-    Validates the channel (404) and the regex pattern (422). The backend auto-
-    discovers the last ``payload.limit`` posts via ``get_last_messages`` and
-    filters them by ``payload.pattern`` — the caller does not collect post URLs.
-    Creates an ``edit_jobs`` row (``status='pending'``, ``total=0`` — updated
-    by the worker once matching posts are known) and submits it to the runner.
+    Validates the channel (404). The *pattern* is compiled via
+    :func:`compile_pattern` according to *payload.mode* and
+    *payload.keep_tail* before being saved to the DB and submitted to the
+    runner — so ``edit_jobs.pattern`` always carries the final regex (for
+    transparency in the logs). The compiled regex is validated as a regex
+    (422 on invalid syntax). The backend auto-discovers the last
+    ``payload.limit`` posts via ``get_last_messages`` and filters them by
+    the compiled pattern.
     """
     try:
-        validate_pattern(payload.pattern)
+        compiled = compile_pattern(payload.pattern, payload.mode, payload.keep_tail)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid pattern: {exc}",
+        ) from exc
+    try:
+        validate_pattern(compiled)
     except ValueError as exc:
         raise HTTPException(
             status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -107,7 +122,7 @@ async def replace_link_endpoint(
         row = await job_model.create_job(
             db,
             channel_id=channel_id,
-            pattern=payload.pattern,
+            pattern=compiled,
             new_link=payload.new_link,
             created_at=now_iso(),
         )
@@ -116,10 +131,61 @@ async def replace_link_endpoint(
         job_id=int(row["id"]),
         chat_id=int(channel["telegram_id"]),
         limit=payload.limit,
-        pattern=payload.pattern,
+        pattern=compiled,
         new_link=payload.new_link,
     )
     return {"job_id": int(row["id"]), "status": "pending"}
+
+
+@router.post(
+    "/api/channels/{channel_id}/preview-replace",
+    response_model=PreviewResponse,
+)
+async def preview_replace_endpoint(
+    channel_id: int,
+    payload: PreviewRequest,
+) -> PreviewResponse:
+    """Dry-run replacement preview for the given channel.
+
+    Compiles *payload.pattern* via :func:`compile_pattern` (mode + keep_tail),
+    validates the resulting regex (422 on invalid syntax), fetches the last
+    ``payload.limit`` posts via ``get_last_messages``, and runs
+    :func:`preview_replace` to produce up to 3 ``before -> after`` preview
+    pairs. No edits are made in Telegram.
+    """
+    try:
+        compiled = compile_pattern(payload.pattern, payload.mode, payload.keep_tail)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid pattern: {exc}",
+        ) from exc
+    try:
+        validate_pattern(compiled)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid pattern: {exc}",
+        ) from exc
+
+    async with get_db() as db:
+        channel = await _get_channel_or_404(db, channel_id)
+
+    messages = await telegram_module.get_last_messages(int(channel["telegram_id"]), payload.limit)
+    result = await preview_replace(messages, compiled, payload.new_link, limit=3)
+    return PreviewResponse(
+        previews=[
+            PreviewItem(
+                message_id=int(e["message_id"]),
+                before=str(e["before"]),
+                after=str(e["after"]),
+                match_source=str(e["match_source"]),
+            )
+            for e in result["previews"]
+        ],
+        total_matches=int(result["total_matches"]),
+        compiled_pattern=compiled,
+    )
 
 
 @router.get("/api/jobs", response_model=JobListResponse)
