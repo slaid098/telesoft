@@ -59,7 +59,7 @@ function statusClass(status: Job["status"]): string {
     <ReplaceLinkForm
       channelId={channel.id}
       onPreview={(response) => (preview = response)}
-      runSignal={{ nonce: runNonce }}
+      runNonce={runNonce}
     />
   </div>
 

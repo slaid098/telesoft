@@ -1,6 +1,6 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { ApiError, listPatterns, previewReplace, replaceLink } from "$lib/api";
+import { ApiError, apiErrorMessage, listPatterns, previewReplace, replaceLink } from "$lib/api";
 import PatternLibrary from "$lib/components/PatternLibrary.svelte";
 import type { PatternListResponse, PreviewResponse, ReplaceMode } from "$lib/types";
 
@@ -8,10 +8,10 @@ type Props = {
   channelId: number;
   onSubmit?: (response: { job_id: number }) => void;
   onPreview?: (response: PreviewResponse) => void;
-  runSignal?: { nonce: number };
+  runNonce?: number;
 };
 
-const { channelId, onSubmit, onPreview, runSignal }: Props = $props();
+const { channelId, onSubmit, onPreview, runNonce = 0 }: Props = $props();
 
 const MODES: { value: ReplaceMode; label: string }[] = [
   { value: "simple", label: "Simple" },
@@ -31,6 +31,7 @@ let previewing = $state(false);
 let patterns = $state<PatternListResponse | null>(null);
 let selectedPatternId = $state<string>("");
 let showLibrary = $state(false);
+let lastRunNonce = $state(0);
 
 const trimmedPattern = $derived(pattern.trim());
 const trimmedNewLink = $derived(newLink.trim());
@@ -55,11 +56,7 @@ async function loadPatterns() {
   try {
     patterns = await listPatterns();
   } catch (err) {
-    if (err instanceof ApiError) {
-      error = err.message || "Failed to load patterns";
-    } else {
-      error = "Network error";
-    }
+    error = apiErrorMessage(err, "Failed to load patterns");
   }
 }
 
@@ -70,10 +67,17 @@ $effect(() => {
 });
 
 $effect(() => {
-  if (runSignal && runSignal.nonce > 0) {
+  if (runNonce > 0 && runNonce !== lastRunNonce) {
+    lastRunNonce = runNonce;
     void submitJob();
   }
 });
+
+function selectMode(next: ReplaceMode) {
+  if (next === mode) return;
+  mode = next;
+  error = null;
+}
 
 async function handlePreview() {
   if (!canSubmit) {
@@ -92,11 +96,7 @@ async function handlePreview() {
     });
     onPreview?.(result);
   } catch (err) {
-    if (err instanceof ApiError) {
-      error = err.message || "Preview failed";
-    } else {
-      error = "Network error";
-    }
+    error = apiErrorMessage(err, "Preview failed");
   } finally {
     previewing = false;
   }
@@ -120,11 +120,7 @@ async function submitJob() {
     onSubmit?.(result);
     await goto(`/jobs/${result.job_id}`);
   } catch (err) {
-    if (err instanceof ApiError) {
-      error = err.message || "Replace-link failed";
-    } else {
-      error = "Network error";
-    }
+    error = apiErrorMessage(err, "Replace-link failed");
   } finally {
     submitting = false;
   }
@@ -145,12 +141,14 @@ async function handleSubmit(event: Event) {
         type="button"
         role="tab"
         aria-selected={mode === m.value}
+        aria-controls={`rl-panel-${m.value}`}
+        id={`rl-tab-${m.value}`}
         class={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition ${
           mode === m.value
             ? "bg-brand-600 text-white"
             : "text-slate-300 hover:bg-slate-700"
         }`}
-        onclick={() => (mode = m.value)}
+        onclick={() => selectMode(m.value)}
       >
         {m.label}
       </button>
@@ -158,7 +156,11 @@ async function handleSubmit(event: Event) {
   </div>
 
   {#if mode === "simple"}
-    <div>
+    <div
+      id="rl-panel-simple"
+      role="tabpanel"
+      aria-labelledby="rl-tab-simple"
+    >
       <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
         Найти ссылки
       </label>
@@ -173,7 +175,11 @@ async function handleSubmit(event: Event) {
       <p class="mt-1 text-xs text-slate-400">Используй <code class="text-brand-300">*</code> для любого текста</p>
     </div>
   {:else if mode === "library"}
-    <div>
+    <div
+      id="rl-panel-library"
+      role="tabpanel"
+      aria-labelledby="rl-tab-library"
+    >
       <label for="rl-pattern-select" class="mb-1 block text-xs font-medium text-slate-300">
         Паттерн из библиотеки
       </label>
@@ -210,7 +216,11 @@ async function handleSubmit(event: Event) {
       </button>
     </div>
   {:else}
-    <div>
+    <div
+      id="rl-panel-advanced"
+      role="tabpanel"
+      aria-labelledby="rl-tab-advanced"
+    >
       <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
         Pattern (raw regex)
       </label>

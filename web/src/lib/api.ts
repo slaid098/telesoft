@@ -24,6 +24,13 @@ export class ApiError extends Error {
   }
 }
 
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    return err.message || fallback;
+  }
+  return "Network error";
+}
+
 type QueryValue = string | number | boolean | undefined | null;
 type RequestOptions = {
   method?: string;

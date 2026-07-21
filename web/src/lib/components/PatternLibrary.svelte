@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ApiError, createPattern, deletePattern, listPatterns } from "$lib/api";
+import { apiErrorMessage, createPattern, deletePattern, listPatterns } from "$lib/api";
 import type { PatternListResponse, PatternResponse } from "$lib/types";
 
 type Props = {
@@ -25,11 +25,7 @@ async function load() {
     const resp: PatternListResponse = await listPatterns();
     patterns = resp.patterns;
   } catch (err) {
-    if (err instanceof ApiError) {
-      error = err.message || "Failed to load patterns";
-    } else {
-      error = "Network error";
-    }
+    error = apiErrorMessage(err, "Failed to load patterns");
   } finally {
     loading = false;
   }
@@ -55,11 +51,7 @@ async function handleCreate(event: Event) {
     await load();
     onPatternsChanged?.();
   } catch (err) {
-    if (err instanceof ApiError) {
-      error = err.message || "Failed to create pattern";
-    } else {
-      error = "Network error";
-    }
+    error = apiErrorMessage(err, "Failed to create pattern");
   } finally {
     creating = false;
   }
@@ -73,11 +65,7 @@ async function handleDelete(id: number) {
     await load();
     onPatternsChanged?.();
   } catch (err) {
-    if (err instanceof ApiError) {
-      error = err.message || "Failed to delete pattern";
-    } else {
-      error = "Network error";
-    }
+    error = apiErrorMessage(err, "Failed to delete pattern");
   }
 }
 
