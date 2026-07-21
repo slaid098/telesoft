@@ -51,6 +51,7 @@ class Settings:
     jobs_max_concurrency: int
     max_probe_id: int
     telegram_request_delay: float
+    telegram_edit_delay: float
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -71,4 +72,5 @@ class Settings:
             jobs_max_concurrency=_get_int("JOBS_MAX_CONCURRENCY", 3),
             max_probe_id=_get_int("MAX_PROBE_ID", 10000),
             telegram_request_delay=_get_float("TELEGRAM_REQUEST_DELAY", 1.0),
+            telegram_edit_delay=_get_float("TELEGRAM_EDIT_DELAY", 5.0),
         )
