@@ -117,6 +117,7 @@ telesoft/
 - [PR#28 — finalize README + smoke test](../decisions/2026-07-20-pr-28-finalize-readme.md)
 - [PR#30 — spike v2 channels.GetMessagesRequest](../decisions/2026-07-20-pr-30-spike-telethon-v2.md)
 - [PR#44 — entity URL handling](../decisions/2026-07-21-pr-44-entity-url-handling.md)
+- [PR#46 — StringSession instead of file session](../decisions/2026-07-21-pr-46-string-session.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -132,3 +133,4 @@ telesoft/
 - [PR#28 — finalize README + smoke test](../handoff/pr-28-finalize-readme.md)
 - [PR#30 — spike v2 channels.GetMessagesRequest](../handoff/pr-30-spike-telethon-v2.md)
 - [PR#44 — entity URL handling](../handoff/pr-44-entity-url-handling.md)
+- [PR#46 — StringSession instead of file session](../handoff/pr-46-string-session.md)

@@ -25,7 +25,7 @@ key_files:
   - src/telesoft/__init__.py — package marker (empty)
   - src/telesoft/py.typed — PEP 561 marker (empty)
 dependencies: []
-last_updated: 2026-07-21 (PR#44)
+last_updated: 2026-07-21 (PR#46)
 ---
 
 # backend — src/telesoft/
