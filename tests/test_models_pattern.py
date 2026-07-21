@@ -8,6 +8,7 @@ from telesoft.db.models import pattern as pattern_model
 
 
 async def test_create_pattern_returns_row(mock_db) -> None:  # type: ignore[no-untyped-def]
+    """Custom patterns are created after the 4 seeded built-ins (issue #59)."""
     row = await pattern_model.create_pattern(
         mock_db,
         name="Basic bot link",
@@ -16,7 +17,7 @@ async def test_create_pattern_returns_row(mock_db) -> None:  # type: ignore[no-u
         is_builtin=0,
         created_at="2026-07-21T00:00:00Z",
     )
-    assert row["id"] == 1
+    assert row["id"] == 5
     assert row["name"] == "Basic bot link"
     assert row["pattern"] == r"https://t\.me/bot\?start=\d+"
     assert row["description"] == "Generic bot start link"
@@ -43,6 +44,7 @@ async def test_get_pattern_not_found(mock_db) -> None:  # type: ignore[no-untype
 
 
 async def test_list_patterns_ordered_by_id(mock_db) -> None:  # type: ignore[no-untyped-def]
+    """Custom patterns are appended after the 4 seeded built-ins (issue #59)."""
     await pattern_model.create_pattern(
         mock_db,
         name="A",
@@ -60,9 +62,9 @@ async def test_list_patterns_ordered_by_id(mock_db) -> None:  # type: ignore[no-
         created_at="2026-07-21T00:00:01Z",
     )
     rows = await pattern_model.list_patterns(mock_db)
-    assert len(rows) == 2
-    assert rows[0]["name"] == "A"
-    assert rows[1]["name"] == "B"
+    assert len(rows) == 6  # 4 seeded + 2 newly inserted
+    assert rows[-2]["name"] == "A"
+    assert rows[-1]["name"] == "B"
 
 
 async def test_delete_pattern_custom(mock_db) -> None:  # type: ignore[no-untyped-def]
