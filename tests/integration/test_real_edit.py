@@ -10,6 +10,7 @@ the channel clean.
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import AsyncIterator
 from typing import Any
@@ -19,6 +20,7 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 
 from telesoft.config import Settings
+from telesoft.core import telegram as telegram_module
 from telesoft.core.link_replacer import find_posts_with_pattern, replace_link_in_post
 from telesoft.core.telegram import get_message
 
@@ -37,10 +39,35 @@ PATTERN = r"https://new\.example\.com/path"
 NEW_LINK = "https://new.example.com/edited"
 
 
+@pytest.fixture(autouse=True)
+async def _reset_telegram_state() -> AsyncIterator[None]:
+    """Reset the core.telegram singleton state between tests.
+
+    Telethon forbids reusing a client across asyncio event loops; each
+    pytest-asyncio test gets a fresh loop, so the shared client from a
+    previous test would raise ``RuntimeError: The asyncio event loop must
+    not change after connection``. Dropping the singleton before each test
+    forces a fresh ``start_client()`` against the current loop.
+    """
+    telegram_module._state.client = None
+    telegram_module._state.started = False
+    yield
+    if telegram_module._state.client is not None and telegram_module._state.started:
+        with contextlib.suppress(Exception):
+            await telegram_module._state.client.disconnect()
+    telegram_module._state.client = None
+    telegram_module._state.started = False
+
+
 async def _client() -> TelegramClient:
     settings = Settings.from_env()
+    session = (
+        StringSession(settings.telegram_session_string)
+        if settings.telegram_session_string
+        else StringSession()
+    )
     client = TelegramClient(
-        StringSession(),
+        session,
         settings.telegram_api_id,
         settings.telegram_api_hash,
         receive_updates=False,

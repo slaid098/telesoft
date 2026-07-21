@@ -47,6 +47,7 @@ class Settings:
     telegram_api_hash: str
     telegram_bot_token: str
     session_path: str
+    telegram_session_string: str
     jobs_max_concurrency: int
     max_probe_id: int
     telegram_request_delay: float
@@ -66,6 +67,7 @@ class Settings:
             telegram_api_hash=_get_str("TELEGRAM_API_HASH", ""),
             telegram_bot_token=_get_str("TELEGRAM_BOT_TOKEN", ""),
             session_path=_get_str("SESSION_PATH", "app_data/bot.session"),
+            telegram_session_string=_get_str("TELEGRAM_SESSION_STRING", ""),
             jobs_max_concurrency=_get_int("JOBS_MAX_CONCURRENCY", 3),
             max_probe_id=_get_int("MAX_PROBE_ID", 10000),
             telegram_request_delay=_get_float("TELEGRAM_REQUEST_DELAY", 1.0),

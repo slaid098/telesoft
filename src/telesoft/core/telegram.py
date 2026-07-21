@@ -40,8 +40,13 @@ async def get_client() -> TelegramClient:
     """Return the shared TelegramClient, creating it lazily from Settings."""
     if _state.client is None:
         settings = Settings.from_env()
+        session = (
+            StringSession(settings.telegram_session_string)
+            if settings.telegram_session_string
+            else StringSession()
+        )
         _state.client = TelegramClient(
-            StringSession(),
+            session,
             settings.telegram_api_id,
             settings.telegram_api_hash,
             receive_updates=False,
