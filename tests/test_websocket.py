@@ -102,6 +102,7 @@ def test_ws_receives_events(
             json={
                 "pattern": pattern,
                 "new_link": "https://new.example.com",
+                "post_link": "140",
                 "limit": 100,
             },
         )

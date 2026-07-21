@@ -18,7 +18,6 @@ def test_settings_from_env_defaults(monkeypatch) -> None:
         "SESSION_PATH",
         "TELEGRAM_SESSION_STRING",
         "JOBS_MAX_CONCURRENCY",
-        "MAX_PROBE_ID",
         "TELEGRAM_REQUEST_DELAY",
         "TELEGRAM_EDIT_DELAY",
     ):
@@ -38,7 +37,6 @@ def test_settings_from_env_defaults(monkeypatch) -> None:
     assert settings.session_path == "app_data/bot.session"
     assert settings.telegram_session_string == ""
     assert settings.jobs_max_concurrency == 3
-    assert settings.max_probe_id == 10000
     assert settings.telegram_request_delay == 1.0
     assert settings.telegram_edit_delay == 5.0
 
@@ -57,7 +55,6 @@ def test_settings_from_env_custom(monkeypatch) -> None:
     monkeypatch.setenv("SESSION_PATH", "/data/session")
     monkeypatch.setenv("TELEGRAM_SESSION_STRING", "abc123")
     monkeypatch.setenv("JOBS_MAX_CONCURRENCY", "5")
-    monkeypatch.setenv("MAX_PROBE_ID", "50000")
     monkeypatch.setenv("TELEGRAM_REQUEST_DELAY", "0.5")
     monkeypatch.setenv("TELEGRAM_EDIT_DELAY", "3.5")
 
@@ -75,7 +72,6 @@ def test_settings_from_env_custom(monkeypatch) -> None:
     assert settings.session_path == "/data/session"
     assert settings.telegram_session_string == "abc123"
     assert settings.jobs_max_concurrency == 5
-    assert settings.max_probe_id == 50000
     assert settings.telegram_request_delay == 0.5
     assert settings.telegram_edit_delay == 3.5
 
@@ -95,7 +91,6 @@ def test_settings_is_frozen() -> None:
         session_path="sess",
         telegram_session_string="",
         jobs_max_concurrency=3,
-        max_probe_id=10000,
         telegram_request_delay=1.0,
         telegram_edit_delay=5.0,
     )

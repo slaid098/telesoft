@@ -12,6 +12,7 @@ is supported — history iteration (``iter_messages`` /
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -180,41 +181,48 @@ async def _fetch_messages_by_ids(chat_id: int, ids: list[int]) -> list[Message]:
     return []
 
 
-async def _find_max_id(chat_id: int, max_probe_id: int, delay: float) -> int:
-    """Binary search the largest existing message id in a channel."""
-    lo = 1
-    hi = max_probe_id
-    last_existing = 0
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        logger.debug("binary search probe mid={}", mid)
-        probe = await _fetch_messages_by_ids(chat_id, [mid])
-        if probe:
-            last_existing = mid
-            lo = mid + 1
-        else:
-            hi = mid - 1
-        if lo <= hi:
-            await asyncio.sleep(delay)
-    return last_existing
+def parse_post_link(link: str) -> int:
+    """Extract the message id from a Telegram post link or plain id.
+
+    Accepts:
+    - ``https://t.me/channelname/140`` → 140
+    - ``https://t.me/c/1234567890/140`` → 140
+    - ``140`` (plain number) → 140
+
+    Raises ``ValueError`` if *link* cannot be parsed.
+    """
+    stripped = link.strip()
+    match = re.search(r"/(\d+)/?$", stripped)
+    if match:
+        return int(match.group(1))
+    try:
+        return int(stripped)
+    except ValueError as exc:
+        msg = f"cannot parse post link: {link}"
+        raise ValueError(msg) from exc
 
 
-async def get_last_messages(channel_id: int, limit: int = 100) -> list[Message]:
+async def get_last_messages(
+    channel_id: int, limit: int = 100, max_id: int = 0
+) -> list[Message]:
     """Return up to ``limit`` most recent channel posts via high-level API.
 
-    Uses ``client.get_messages(chat_id, ids=[...])`` (works for bot-admin):
-    binary search to find max_id, then a single range fetch for ids
-    [max_id, start_id].
+    Uses ``client.get_messages(chat_id, ids=[...])`` (works for bot-admin).
+    The caller supplies ``max_id`` (the id of the last known post); ids are
+    fetched from ``max_id`` down to ``max(0, max_id - limit)`` (descending).
+    If ``max_id`` is 0, returns an empty list with a warning — the caller
+    must provide a valid post link.
     """
-    logger.info("get_last_messages: channel_id={}, limit={}", channel_id, limit)
-    settings = Settings.from_env()
-    max_id = await _find_max_id(channel_id, settings.max_probe_id, settings.telegram_request_delay)
-    logger.info("binary search: max_id={}", max_id)
-    if max_id == 0:
-        logger.warning("get_last_messages: no messages found (max_id=0)")
+    logger.info(
+        "get_last_messages: channel_id={}, limit={}, max_id={}",
+        channel_id,
+        limit,
+        max_id,
+    )
+    if max_id <= 0:
+        logger.warning("get_last_messages: max_id=0, returning empty list")
         return []
-    start_id = max(1, max_id - limit + 1)
-    ids = list(range(max_id, start_id - 1, -1))
+    ids = list(range(max_id, max(0, max_id - limit), -1))
     messages = await _fetch_messages_by_ids(channel_id, ids)
     logger.info("fetched {} messages", len(messages))
     return messages

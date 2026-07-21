@@ -167,6 +167,7 @@ def test_preview_replace_returns_previews(
         json={
             "pattern": r"https://old\.example\.com",
             "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
             "mode": "advanced",
             "keep_tail": False,
             "limit": 100,
@@ -197,6 +198,7 @@ def test_preview_replace_simple_mode_compiles_wildcard(
         json={
             "pattern": "https://t.me/bot?start=flow-*",
             "new_link": "https://new.example.com",
+            "post_link": "140",
             "mode": "simple",
             "keep_tail": False,
         },
@@ -219,6 +221,7 @@ def test_preview_replace_keep_tail_strips_tail(
         json={
             "pattern": r"https://t\.me/bot\?start=flow-\d+(-s-\d+)?",
             "new_link": "https://new.example.com",
+            "post_link": "140",
             "mode": "advanced",
             "keep_tail": True,
         },
@@ -235,7 +238,11 @@ def test_preview_replace_invalid_channel_404(
     """Preview for a non-existent channel → 404."""
     response = authed_client.post(
         "/api/channels/9999/preview-replace",
-        json={"pattern": r"https://x", "new_link": "https://new.example.com"},
+        json={
+            "pattern": r"https://x",
+            "new_link": "https://new.example.com",
+            "post_link": "140",
+        },
     )
     assert response.status_code == 404
     mock_telethon_get_last_messages.assert_not_awaited()
@@ -249,7 +256,11 @@ def test_preview_replace_invalid_pattern_422(
     channel = _create_channel(authed_client)
     response = authed_client.post(
         f"/api/channels/{channel['id']}/preview-replace",
-        json={"pattern": "[invalid", "new_link": "https://new.example.com"},
+        json={
+            "pattern": "[invalid",
+            "new_link": "https://new.example.com",
+            "post_link": "140",
+        },
     )
     assert response.status_code == 422
     mock_telethon_get_last_messages.assert_not_awaited()
@@ -263,7 +274,30 @@ def test_preview_replace_unknown_mode_422(
     channel = _create_channel(authed_client)
     response = authed_client.post(
         f"/api/channels/{channel['id']}/preview-replace",
-        json={"pattern": "x", "new_link": "https://new.example.com", "mode": "regex"},
+        json={
+            "pattern": "x",
+            "new_link": "https://new.example.com",
+            "post_link": "140",
+            "mode": "regex",
+        },
+    )
+    assert response.status_code == 422
+    mock_telethon_get_last_messages.assert_not_awaited()
+
+
+def test_preview_replace_invalid_post_link_422(
+    authed_client: TestClient,
+    mock_telethon_get_last_messages: Any,
+) -> None:
+    """Invalid post_link → 422 (no Telegram fetch)."""
+    channel = _create_channel(authed_client)
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/preview-replace",
+        json={
+            "pattern": r"https://x",
+            "new_link": "https://new.example.com",
+            "post_link": "invalid",
+        },
     )
     assert response.status_code == 422
     mock_telethon_get_last_messages.assert_not_awaited()
@@ -278,7 +312,11 @@ def test_preview_replace_requires_auth(monkeypatch: pytest.MonkeyPatch, tmp_path
     with TestClient(app) as unauthed:
         response = unauthed.post(
             "/api/channels/1/preview-replace",
-            json={"pattern": "x", "new_link": "https://new.example.com"},
+            json={
+                "pattern": "x",
+                "new_link": "https://new.example.com",
+                "post_link": "140",
+            },
         )
         assert response.status_code == 401
 
@@ -298,6 +336,7 @@ def test_replace_link_simple_mode_compiles_pattern(
         json={
             "pattern": "https://t.me/bot?start=flow-*",
             "new_link": "https://new.example.com",
+            "post_link": "140",
             "mode": "simple",
             "keep_tail": False,
             "limit": 100,
@@ -323,6 +362,7 @@ def test_replace_link_unknown_mode_422(
         json={
             "pattern": "x",
             "new_link": "https://new.example.com",
+            "post_link": "140",
             "mode": "regex",
         },
     )
@@ -345,6 +385,7 @@ def test_replace_link_backward_compat_default_mode(
         json={
             "pattern": r"https://old\.example\.com",
             "new_link": "https://new.example.com",
+            "post_link": "140",
             "limit": 100,
         },
     )

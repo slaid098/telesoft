@@ -25,6 +25,7 @@ from telesoft.core import telegram as telegram_module
 from telesoft.core.link_replacer import preview_replace, validate_pattern
 from telesoft.core.pattern_compiler import compile_pattern
 from telesoft.core.runner import JobRunner
+from telesoft.core.telegram import parse_post_link
 from telesoft.db.connection import get_db
 from telesoft.db.models import channel as channel_model
 from telesoft.db.models import job as job_model
@@ -93,15 +94,23 @@ async def replace_link_endpoint(
 ) -> dict[str, Any]:
     """Launch a replace-link job for the given channel.
 
-    Validates the channel (404). The *pattern* is compiled via
-    :func:`compile_pattern` according to *payload.mode* and
-    *payload.keep_tail* before being saved to the DB and submitted to the
-    runner — so ``edit_jobs.pattern`` always carries the final regex (for
-    transparency in the logs). The compiled regex is validated as a regex
-    (422 on invalid syntax). The backend auto-discovers the last
-    ``payload.limit`` posts via ``get_last_messages`` and filters them by
-    the compiled pattern.
+    Validates the channel (404). *payload.post_link* is parsed via
+    :func:`parse_post_link` to derive ``max_id`` (422 on parse error). The
+    *pattern* is compiled via :func:`compile_pattern` according to
+    *payload.mode* and *payload.keep_tail* before being saved to the DB and
+    submitted to the runner — so ``edit_jobs.pattern`` always carries the
+    final regex (for transparency in the logs). The compiled regex is
+    validated as a regex (422 on invalid syntax). The backend fetches the
+    last ``payload.limit`` posts ending at ``max_id`` via
+    ``get_last_messages`` and filters them by the compiled pattern.
     """
+    try:
+        max_id = parse_post_link(payload.post_link)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid post_link: {exc}",
+        ) from exc
     try:
         compiled = compile_pattern(payload.pattern, payload.mode, payload.keep_tail)
     except ValueError as exc:
@@ -133,6 +142,7 @@ async def replace_link_endpoint(
         limit=payload.limit,
         pattern=compiled,
         new_link=payload.new_link,
+        max_id=max_id,
     )
     return {"job_id": int(row["id"]), "status": "pending"}
 
@@ -147,12 +157,21 @@ async def preview_replace_endpoint(
 ) -> PreviewResponse:
     """Dry-run replacement preview for the given channel.
 
-    Compiles *payload.pattern* via :func:`compile_pattern` (mode + keep_tail),
-    validates the resulting regex (422 on invalid syntax), fetches the last
-    ``payload.limit`` posts via ``get_last_messages``, and runs
+    Parses *payload.post_link* via :func:`parse_post_link` to derive
+    ``max_id`` (422 on parse error). Compiles *payload.pattern* via
+    :func:`compile_pattern` (mode + keep_tail), validates the resulting
+    regex (422 on invalid syntax), fetches the last ``payload.limit`` posts
+    ending at ``max_id`` via ``get_last_messages``, and runs
     :func:`preview_replace` to produce up to 3 ``before -> after`` preview
     pairs. No edits are made in Telegram.
     """
+    try:
+        max_id = parse_post_link(payload.post_link)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid post_link: {exc}",
+        ) from exc
     try:
         compiled = compile_pattern(payload.pattern, payload.mode, payload.keep_tail)
     except ValueError as exc:
@@ -171,7 +190,9 @@ async def preview_replace_endpoint(
     async with get_db() as db:
         channel = await _get_channel_or_404(db, channel_id)
 
-    messages = await telegram_module.get_last_messages(int(channel["telegram_id"]), payload.limit)
+    messages = await telegram_module.get_last_messages(
+        int(channel["telegram_id"]), payload.limit, max_id
+    )
     result = await preview_replace(messages, compiled, payload.new_link, limit=3)
     return PreviewResponse(
         previews=[

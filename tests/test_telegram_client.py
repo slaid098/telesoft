@@ -7,11 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from telethon.errors import BadRequestError, FloodWaitError, RPCError
 
-from telesoft.config import Settings
 from telesoft.core import telegram as telegram_module
 from telesoft.core.telegram import (
     _fetch_messages_by_ids,
-    _find_max_id,
     edit_message,
     edit_message_entities,
     get_bot_info,
@@ -19,6 +17,7 @@ from telesoft.core.telegram import (
     get_last_messages,
     get_message,
     get_messages,
+    parse_post_link,
     resolve_entity,
     start_client,
     stop_client,
@@ -223,29 +222,27 @@ def _mk_msg(msg_id: int, *, date: object = "2026-07-20") -> MockMessage:
     return MockMessage(id=msg_id, text=f"text-{msg_id}", chat_id=-100, date=date)
 
 
-async def test_get_last_messages_success(
+async def test_get_last_messages_with_max_id(
     mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(telegram_module, "_find_max_id", AsyncMock(return_value=150))
-    range_messages = [_mk_msg(i) for i in range(150, 50, -1)]
+    """get_last_messages(max_id=140, limit=10) fetches ids [140, 139, ..., 131]."""
+    range_messages = [_mk_msg(i) for i in range(140, 130, -1)]
     mock_telethon_client.get_messages.return_value = range_messages
 
-    result = await get_last_messages(channel_id=-1001234567890, limit=100)
+    result = await get_last_messages(channel_id=-1001234567890, limit=10, max_id=140)
 
     assert result == range_messages
-    assert len(result) == 100
     mock_telethon_client.get_messages.assert_awaited_once()
-    assert mock_telethon_client.get_messages.await_args.kwargs["ids"] == list(range(150, 50, -1))
+    assert mock_telethon_client.get_messages.await_args.kwargs["ids"] == list(
+        range(140, 130, -1)
+    )
 
 
-async def test_get_last_messages_empty_channel(
+async def test_get_last_messages_max_id_zero_returns_empty(
     mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(telegram_module, "_find_max_id", AsyncMock(return_value=0))
-
-    result = await get_last_messages(channel_id=-1001234567890, limit=100)
+    """max_id=0 returns an empty list without calling Telegram."""
+    result = await get_last_messages(channel_id=-1001234567890, limit=10, max_id=0)
 
     assert result == []
     mock_telethon_client.get_messages.assert_not_awaited()
@@ -253,47 +250,42 @@ async def test_get_last_messages_empty_channel(
 
 async def test_get_last_messages_limit_larger_than_max_id(
     mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(telegram_module, "_find_max_id", AsyncMock(return_value=50))
-    range_messages = [_mk_msg(i) for i in range(50, 0, -1)]
+    """max_id=5, limit=10 → ids=[5, 4, 3, 2, 1] (does not go below 1)."""
+    range_messages = [_mk_msg(i) for i in range(5, 0, -1)]
     mock_telethon_client.get_messages.return_value = range_messages
 
-    result = await get_last_messages(channel_id=-1001234567890, limit=100)
+    result = await get_last_messages(channel_id=-1001234567890, limit=10, max_id=5)
 
     assert result == range_messages
-    assert len(result) == 50
-    assert mock_telethon_client.get_messages.await_args.kwargs["ids"] == list(range(50, 0, -1))
+    assert mock_telethon_client.get_messages.await_args.kwargs["ids"] == [
+        5,
+        4,
+        3,
+        2,
+        1,
+    ]
 
 
-async def test_find_max_id_binary_search(
-    mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    existing = {1250, 1875}
-
-    def _probe(*_args: object, **kwargs: object) -> list[MockMessage]:
-        mid = kwargs["ids"][0]  # type: ignore[index]
-        return [_mk_msg(mid)] if mid in existing else []
-
-    mock_telethon_client.get_messages.side_effect = _probe
-    monkeypatch.setattr(telegram_module.asyncio, "sleep", AsyncMock())
-
-    max_id = await _find_max_id(chat_id=-1001234567890, max_probe_id=10000, delay=0.0)
-
-    assert max_id == 1875
+def test_parse_post_link_public_channel_url() -> None:
+    """https://t.me/channelname/140 → 140."""
+    assert parse_post_link("https://t.me/channelname/140") == 140
 
 
-async def test_find_max_id_all_empty(
-    mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    mock_telethon_client.get_messages.return_value = []
-    monkeypatch.setattr(telegram_module.asyncio, "sleep", AsyncMock())
+def test_parse_post_link_private_channel_url() -> None:
+    """https://t.me/c/1234567890/140 → 140."""
+    assert parse_post_link("https://t.me/c/1234567890/140") == 140
 
-    max_id = await _find_max_id(chat_id=-1001234567890, max_probe_id=100, delay=0.0)
 
-    assert max_id == 0
+def test_parse_post_link_plain_number() -> None:
+    """140 (plain number) → 140."""
+    assert parse_post_link("140") == 140
+
+
+def test_parse_post_link_invalid_raises_value_error() -> None:
+    """invalid input raises ValueError."""
+    with pytest.raises(ValueError, match="cannot parse post link"):
+        parse_post_link("invalid")
 
 
 async def test_fetch_messages_by_ids_filters_empty(
@@ -351,64 +343,3 @@ async def test_flood_wait_max_retries_exceeded(
     assert mock_telethon_client.get_messages.await_count == 3
     flood_sleeps = [c for c in sleep_mock.await_args_list if c.args[0] == 3]
     assert len(flood_sleeps) == 2
-
-
-async def test_delay_between_requests(
-    mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
-    mock_settings: Settings,
-) -> None:
-    """``_find_max_id`` sleeps *delay* seconds between probes (passed in
-    explicitly — ``Settings.from_env`` is NOT called inside ``_find_max_id``).
-    """
-    mock_telethon_client.get_messages.return_value = []
-    sleep_mock = AsyncMock()
-    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
-
-    await _find_max_id(
-        chat_id=-1001234567890, max_probe_id=8, delay=mock_settings.telegram_request_delay
-    )
-
-    delay_calls = [
-        c for c in sleep_mock.await_args_list if c.args[0] == mock_settings.telegram_request_delay
-    ]
-    assert len(delay_calls) >= 1
-    assert all(c.args[0] == mock_settings.telegram_request_delay for c in delay_calls)
-
-
-async def test_get_last_messages_reads_settings_once(
-    mock_telethon_client: AsyncMock,
-    monkeypatch: pytest.MonkeyPatch,
-    mock_settings: Settings,
-) -> None:
-    """``get_last_messages`` reads ``Settings.from_env`` exactly once (to thread
-    the delay into ``_find_max_id``) and does NOT re-read per probe.
-
-    ``start_client`` is stubbed so its own ``Settings.from_env`` call (for the
-    bot token / api id) doesn't pollute the count — the test asserts the
-    per-probe reads were eliminated in PR#34.
-    """
-    monkeypatch.setattr(
-        telegram_module, "start_client", AsyncMock(return_value=mock_telethon_client)
-    )
-    sleep_mock = AsyncMock()
-    monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
-    from_env_calls = [0]
-
-    original_from_env = Settings.from_env
-
-    def _counting_from_env() -> Settings:
-        from_env_calls[0] += 1
-        return original_from_env()
-
-    monkeypatch.setattr(Settings, "from_env", _counting_from_env)
-
-    mock_telethon_client.get_messages.return_value = []
-
-    await get_last_messages(channel_id=-1001234567890, limit=100)
-
-    assert from_env_calls[0] == 1
-    delay_sleeps = [
-        c for c in sleep_mock.await_args_list if c.args[0] == mock_settings.telegram_request_delay
-    ]
-    assert all(c.args[0] == mock_settings.telegram_request_delay for c in delay_sleeps)

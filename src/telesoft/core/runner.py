@@ -11,10 +11,10 @@ app on). One instance is created at app startup (see ``main.py`` lifespan) and
 shared across requests via ``app.state.job_runner``.
 
 Job lifecycle:
-- ``submit(job_id, chat_id, limit, pattern, new_link)`` schedules a task. The DB
-  row must already exist with ``status='pending'``.
-- The worker acquires the semaphore, marks the job ``running``, then auto-
-  discovers the last ``limit`` channel posts via
+- ``submit(job_id, chat_id, limit, pattern, new_link, max_id)`` schedules a task.
+  The DB row must already exist with ``status='pending'``.
+- The worker acquires the semaphore, marks the job ``running``, then fetches
+  the last ``limit`` channel posts ending at ``max_id`` via
   :func:`telesoft.core.telegram.get_last_messages`, filters them by *pattern*
   via :func:`telesoft.core.link_replacer.find_posts_with_pattern`, updates
   ``total`` in the DB to the number of matching posts, and edits each one via
@@ -94,13 +94,14 @@ class JobRunner:
 
     # ── Submission / control ─────────────────────────────────────────────
 
-    def submit(
+    def submit(  # noqa: PLR0913
         self,
         job_id: int,
         chat_id: int,
         limit: int,
         pattern: str,
         new_link: str,
+        max_id: int = 0,
     ) -> None:
         """Schedule a background task for *job_id* (must already exist in the DB)."""
         if self._semaphore is None:
@@ -110,7 +111,9 @@ class JobRunner:
             existing.cancel()
         self._cancelled.discard(job_id)
         assert self._semaphore is not None
-        task = asyncio.create_task(self._run_job(job_id, chat_id, limit, pattern, new_link))
+        task = asyncio.create_task(
+            self._run_job(job_id, chat_id, limit, pattern, new_link, max_id)
+        )
         self._tasks[job_id] = task
         logger.bind(job_id=job_id, max_concurrency=self._max_concurrency).info(
             "replace-link job submitted to runner"
@@ -127,13 +130,14 @@ class JobRunner:
 
     # ── Execution ────────────────────────────────────────────────────────
 
-    async def _run_job(
+    async def _run_job(  # noqa: PLR0913
         self,
         job_id: int,
         chat_id: int,
         limit: int,
         pattern: str,
         new_link: str,
+        max_id: int = 0,
     ) -> None:
         """Wrap the replace-link work with semaphore + status transitions."""
         sem = self._semaphore
@@ -141,7 +145,9 @@ class JobRunner:
         async with sem:
             try:
                 await self._mark_running(job_id)
-                messages = await telegram_module.get_last_messages(chat_id, limit)
+                messages = await telegram_module.get_last_messages(
+                    chat_id, limit, max_id
+                )
                 matching = await find_posts_with_pattern(messages, pattern)
                 total = len(matching)
                 logger.info(

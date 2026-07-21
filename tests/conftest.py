@@ -40,7 +40,6 @@ def mock_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
         "TELEGRAM_BOT_TOKEN",
         "SESSION_PATH",
         "JOBS_MAX_CONCURRENCY",
-        "MAX_PROBE_ID",
         "TELEGRAM_REQUEST_DELAY",
         "TELEGRAM_EDIT_DELAY",
     ):
