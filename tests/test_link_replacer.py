@@ -156,9 +156,7 @@ async def test_replace_link_in_post_replaces_entity_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """URL inside an entity is replaced via raw EditMessageRequest."""
-    entity = MessageEntityTextUrl(
-        offset=0, length=4, url="https://old.example.com/path"
-    )
+    entity = MessageEntityTextUrl(offset=0, length=4, url="https://old.example.com/path")
     msg = MagicMock()
     msg.id = 42
     msg.text = "click here"
@@ -192,9 +190,7 @@ async def test_replace_link_in_post_prefers_text_match_over_entity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When the pattern matches both text and entity url, text path wins."""
-    entity = MessageEntityTextUrl(
-        offset=0, length=4, url="https://old.example.com/path"
-    )
+    entity = MessageEntityTextUrl(offset=0, length=4, url="https://old.example.com/path")
     msg = MagicMock()
     msg.id = 42
     msg.text = "https://old.example.com/path here"
@@ -219,9 +215,7 @@ async def test_replace_link_in_post_entity_edit_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When edit_message_entities raises: success=False with error set."""
-    entity = MessageEntityTextUrl(
-        offset=0, length=4, url="https://old.example.com/path"
-    )
+    entity = MessageEntityTextUrl(offset=0, length=4, url="https://old.example.com/path")
     msg = MagicMock()
     msg.id = 42
     msg.text = "click here"
@@ -244,9 +238,7 @@ async def test_replace_link_in_post_skips_when_no_match_in_text_or_entities(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No match in text or entity urls → skipped, no edit called."""
-    entity = MessageEntityTextUrl(
-        offset=0, length=4, url="https://other.example.com/path"
-    )
+    entity = MessageEntityTextUrl(offset=0, length=4, url="https://other.example.com/path")
     msg = MagicMock()
     msg.id = 42
     msg.text = "click here"
@@ -297,9 +289,7 @@ async def test_find_posts_with_pattern_matches_entity_url() -> None:
     pattern = r"https://old\.example\.com"
     entity = MagicMock()
     entity.url = "https://old.example.com"
-    msg_with_entity = MockMessage(
-        id=1, text="click here", chat_id=-100, entities=[entity]
-    )
+    msg_with_entity = MockMessage(id=1, text="click here", chat_id=-100, entities=[entity])
     msg_plain = MockMessage(id=2, text="nothing", chat_id=-100, entities=None)
 
     result = await find_posts_with_pattern([msg_with_entity, msg_plain], pattern)

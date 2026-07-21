@@ -125,6 +125,9 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--cov=telesoft --cov-report=term-missing --cov-fail-under=80"
+markers = [
+    "integration: requires Telegram creds + real channel (opt-in via -m integration)",
+]
 
 # ── coverage ──────────────────────────────────────────────────────────────
 
