@@ -29,6 +29,7 @@ from telesoft.db.models.pattern import (
     delete_pattern,
     get_pattern,
     list_patterns,
+    seed_builtin_patterns,
 )
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     "list_jobs",
     "list_logs",
     "list_patterns",
+    "seed_builtin_patterns",
     "update_channel",
     "update_job_status",
 ]
