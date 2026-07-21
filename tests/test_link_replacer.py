@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -172,6 +172,34 @@ async def test_find_posts_with_pattern_no_matches() -> None:
         MockMessage(id=2, text="beta", chat_id=-100),
     ]
     result = await find_posts_with_pattern(messages, r"https://old\.example\.com")
+    assert result == []
+
+
+async def test_find_posts_with_pattern_matches_entity_url() -> None:
+    """URL inside a MessageEntityTextUrl entity is matched."""
+    pattern = r"https://old\.example\.com"
+    entity = MagicMock()
+    entity.url = "https://old.example.com"
+    msg_with_entity = MockMessage(
+        id=1, text="click here", chat_id=-100, entities=[entity]
+    )
+    msg_plain = MockMessage(id=2, text="nothing", chat_id=-100, entities=None)
+
+    result = await find_posts_with_pattern([msg_with_entity, msg_plain], pattern)
+
+    assert result == [msg_with_entity]
+
+
+async def test_find_posts_with_pattern_skips_when_text_and_entities_empty() -> None:
+    """Message with no text and no entity urls is never matched."""
+    pattern = r"https://old\.example\.com"
+    no_text_no_entities = MockMessage(id=1, text="", chat_id=-100, entities=None)
+    none_text = MockMessage(id=2, text="not empty", chat_id=-100)
+    none_text.text = None
+    none_text.entities = []
+
+    result = await find_posts_with_pattern([no_text_no_entities, none_text], pattern)
+
     assert result == []
 
 

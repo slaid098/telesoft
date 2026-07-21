@@ -20,6 +20,8 @@ import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from loguru import logger
+
 from telesoft.core import telegram as telegram_module
 
 
@@ -97,16 +99,39 @@ async def replace_link_in_post(
     }
 
 
+def _entity_urls(message: Any) -> list[str]:
+    """Return ``MessageEntityTextUrl`` urls carried by *message*."""
+    entities = getattr(message, "entities", None) or []
+    return [e.url for e in entities if hasattr(e, "url")]
+
+
 async def find_posts_with_pattern(messages: list[Any], pattern: str) -> list[Any]:
-    """Filter *messages* down to those whose text matches *pattern*.
+    """Filter *messages* down to those matching *pattern* in text or entities.
 
     Works against the list returned by
     :func:`telesoft.core.telegram.get_last_messages` — does NOT fetch from
-    Telegram. Messages with ``text`` falsy (``None`` / empty) are never
-    matched. Returns the matching messages in their original order.
+    Telegram. A message matches when *pattern* matches its raw ``text`` OR any
+    URL carried by a ``MessageEntityTextUrl`` entity (formatted link). Messages
+    with both ``text`` falsy and no entity urls are never matched. Returns the
+    matching messages in their original order.
     """
     regex = re.compile(pattern)
-    return [m for m in messages if (getattr(m, "text", None) or "") and regex.search(m.text)]
+    matching: list[Any] = []
+    for m in messages:
+        text = getattr(m, "text", None) or ""
+        entity_urls = _entity_urls(m)
+        full_text = text + " " + " ".join(entity_urls)
+        matched = bool(full_text.strip()) and bool(regex.search(full_text))
+        logger.info(
+            "find_posts: msg {} text_len={} entity_urls={} matched={}",
+            getattr(m, "id", None),
+            len(text),
+            len(entity_urls),
+            matched,
+        )
+        if matched:
+            matching.append(m)
+    return matching
 
 
 async def replace_link_in_posts(
