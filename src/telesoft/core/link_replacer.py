@@ -21,6 +21,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from loguru import logger
+from telethon.tl.types import MessageEntityTextUrl
 
 from telesoft.core import telegram as telegram_module
 
@@ -46,10 +47,23 @@ def replace_link(text: str, pattern: str, new_link: str) -> tuple[str, int]:
     return new_text, count
 
 
+def _entity_urls(message: Any) -> list[str]:
+    """Return ``MessageEntityTextUrl`` urls carried by *message*."""
+    entities = getattr(message, "entities", None) or []
+    return [e.url for e in entities if hasattr(e, "url")]
+
+
 async def replace_link_in_post(
     chat_id: int, message_id: int, pattern: str, new_link: str
 ) -> dict[str, Any]:
     """Fetch a post by id, regex-replace links, and edit it via Telethon.
+
+    Two replacement paths are supported:
+    - URL appears in the raw ``message.text`` → regex substitution is applied
+      and the post is edited via ``edit_message``.
+    - URL appears inside a ``MessageEntityTextUrl`` entity (formatted link) →
+      matching entities are rebuilt with *new_link* and the post is edited via
+      the raw ``EditMessageRequest`` API.
 
     Returns a result dict describing the outcome:
     - ``{"success": False, "error": "Message not found", "message_id": ...}``
@@ -58,7 +72,7 @@ async def replace_link_in_post(
       made (the post is left untouched and ``edit_message`` is NOT called).
     - ``{"success": True, "edited": True, "replacements": N, ...}`` on a
       successful edit.
-    - ``{"success": False, "error": str(exc), ...}`` if ``edit_message`` raises.
+    - ``{"success": False, "error": str(exc), ...}`` if the edit call raises.
     """
     message = await telegram_module.get_message(chat_id, message_id)
     if message is None:
@@ -68,9 +82,21 @@ async def replace_link_in_post(
             "message_id": message_id,
         }
 
+    regex = re.compile(pattern)
     text = message.text or ""
-    new_text, count = replace_link(text, pattern, new_link)
-    if count == 0:
+    new_text, text_count = replace_link(text, pattern, new_link)
+
+    entities = getattr(message, "entities", None) or []
+    entity_matches = [e for e in entities if hasattr(e, "url") and regex.search(e.url)]
+    entity_count = len(entity_matches)
+
+    if text_count == 0 and entity_count == 0:
+        logger.info(
+            "replace_link_in_post: msg {} no match (text_len={}, entities={})",
+            message_id,
+            len(text),
+            len(entities),
+        )
         return {
             "success": True,
             "skipped": True,
@@ -80,7 +106,36 @@ async def replace_link_in_post(
         }
 
     try:
-        await telegram_module.edit_message(chat_id, message_id, new_text)
+        if text_count > 0:
+            logger.info(
+                "replace_link_in_post: msg {} match in text (replacements={})",
+                message_id,
+                text_count,
+            )
+            await telegram_module.edit_message(chat_id, message_id, new_text)
+            return {
+                "success": True,
+                "edited": True,
+                "message_id": message_id,
+                "old_text": text,
+                "new_text": new_text,
+                "replacements": text_count,
+                "match_source": "text",
+            }
+        new_entities: list[Any] = []
+        for e in entities:
+            if hasattr(e, "url") and regex.search(e.url):
+                new_entities.append(
+                    MessageEntityTextUrl(offset=e.offset, length=e.length, url=new_link)
+                )
+            else:
+                new_entities.append(e)
+        logger.info(
+            "replace_link_in_post: msg {} match in entity (replacements={})",
+            message_id,
+            entity_count,
+        )
+        await telegram_module.edit_message_entities(chat_id, message_id, text, new_entities)
     except Exception as exc:
         return {
             "success": False,
@@ -94,15 +149,10 @@ async def replace_link_in_post(
         "edited": True,
         "message_id": message_id,
         "old_text": text,
-        "new_text": new_text,
-        "replacements": count,
+        "new_text": text,
+        "replacements": entity_count,
+        "match_source": "entity",
     }
-
-
-def _entity_urls(message: Any) -> list[str]:
-    """Return ``MessageEntityTextUrl`` urls carried by *message*."""
-    entities = getattr(message, "entities", None) or []
-    return [e.url for e in entities if hasattr(e, "url")]
 
 
 async def find_posts_with_pattern(messages: list[Any], pattern: str) -> list[Any]:

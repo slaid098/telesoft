@@ -6,6 +6,7 @@ import re
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from telethon.tl.types import MessageEntityTextUrl
 
 from telesoft.core import telegram as telegram_module
 from telesoft.core.link_replacer import (
@@ -149,6 +150,122 @@ async def test_replace_link_in_post_empty_text(
     assert result["success"] is True
     assert result["skipped"] is True
     edit_mock.assert_not_awaited()
+
+
+async def test_replace_link_in_post_replaces_entity_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """URL inside an entity is replaced via raw EditMessageRequest."""
+    entity = MessageEntityTextUrl(
+        offset=0, length=4, url="https://old.example.com/path"
+    )
+    msg = MagicMock()
+    msg.id = 42
+    msg.text = "click here"
+    msg.entities = [entity]
+    get_mock = AsyncMock(return_value=msg)
+    edit_mock = AsyncMock()
+    edit_entities_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module, "get_message", get_mock)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+    monkeypatch.setattr(telegram_module, "edit_message_entities", edit_entities_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, 42, r"https://old\.example\.com/path", "https://new.example.com/edited"
+    )
+
+    assert result["success"] is True
+    assert result["edited"] is True
+    assert result["match_source"] == "entity"
+    assert result["replacements"] == 1
+    edit_mock.assert_not_awaited()
+    edit_entities_mock.assert_awaited_once()
+    sent_entities = edit_entities_mock.await_args.args[3]
+    assert len(sent_entities) == 1
+    assert isinstance(sent_entities[0], MessageEntityTextUrl)
+    assert sent_entities[0].url == "https://new.example.com/edited"
+    assert sent_entities[0].offset == entity.offset
+    assert sent_entities[0].length == entity.length
+
+
+async def test_replace_link_in_post_prefers_text_match_over_entity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the pattern matches both text and entity url, text path wins."""
+    entity = MessageEntityTextUrl(
+        offset=0, length=4, url="https://old.example.com/path"
+    )
+    msg = MagicMock()
+    msg.id = 42
+    msg.text = "https://old.example.com/path here"
+    msg.entities = [entity]
+    get_mock = AsyncMock(return_value=msg)
+    edit_mock = AsyncMock()
+    edit_entities_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module, "get_message", get_mock)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+    monkeypatch.setattr(telegram_module, "edit_message_entities", edit_entities_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, 42, r"https://old\.example\.com", "https://new.example.com/edited"
+    )
+
+    assert result["match_source"] == "text"
+    edit_mock.assert_awaited_once()
+    edit_entities_mock.assert_not_awaited()
+
+
+async def test_replace_link_in_post_entity_edit_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When edit_message_entities raises: success=False with error set."""
+    entity = MessageEntityTextUrl(
+        offset=0, length=4, url="https://old.example.com/path"
+    )
+    msg = MagicMock()
+    msg.id = 42
+    msg.text = "click here"
+    msg.entities = [entity]
+    get_mock = AsyncMock(return_value=msg)
+    edit_entities_mock = AsyncMock(side_effect=RuntimeError("entity edit boom"))
+    monkeypatch.setattr(telegram_module, "get_message", get_mock)
+    monkeypatch.setattr(telegram_module, "edit_message_entities", edit_entities_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, 42, r"https://old\.example\.com/path", "https://new.example.com/edited"
+    )
+
+    assert result["success"] is False
+    assert "entity edit boom" in str(result["error"])
+    edit_entities_mock.assert_awaited_once()
+
+
+async def test_replace_link_in_post_skips_when_no_match_in_text_or_entities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No match in text or entity urls → skipped, no edit called."""
+    entity = MessageEntityTextUrl(
+        offset=0, length=4, url="https://other.example.com/path"
+    )
+    msg = MagicMock()
+    msg.id = 42
+    msg.text = "click here"
+    msg.entities = [entity]
+    get_mock = AsyncMock(return_value=msg)
+    edit_mock = AsyncMock()
+    edit_entities_mock = AsyncMock()
+    monkeypatch.setattr(telegram_module, "get_message", get_mock)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+    monkeypatch.setattr(telegram_module, "edit_message_entities", edit_entities_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, 42, r"https://old\.example\.com", "https://new.example.com/edited"
+    )
+
+    assert result["success"] is True
+    assert result["skipped"] is True
+    edit_mock.assert_not_awaited()
+    edit_entities_mock.assert_not_awaited()
 
 
 async def test_find_posts_with_pattern_filters_matching() -> None:

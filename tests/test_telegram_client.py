@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from telethon.errors import BadRequestError, FloodWaitError, RPCError
 from telethon.tl.functions.channels import GetMessagesRequest as ChannelsGetMessagesRequest
+from telethon.tl.functions.messages import EditMessageRequest as MessagesEditMessageRequest
+from telethon.tl.types import InputPeerChannel
 
 from telesoft.config import Settings
 from telesoft.core import telegram as telegram_module
@@ -14,6 +16,7 @@ from telesoft.core.telegram import (
     _fetch_messages_by_ids,
     _find_max_id,
     edit_message,
+    edit_message_entities,
     get_bot_info,
     get_client,
     get_last_messages,
@@ -72,6 +75,36 @@ async def test_edit_message_propagates_error(mock_telethon_client: AsyncMock) ->
     mock_telethon_client.edit_message.side_effect = BadRequestError(request=None, message="boom")
     with pytest.raises(RPCError):
         await edit_message(chat_id=-1001234567890, message_id=123, text="new text")
+
+
+async def test_edit_message_entities_invokes_raw_api(
+    mock_telethon_client: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """edit_message_entities resolves InputChannel, builds InputPeerChannel, invokes raw API."""
+    monkeypatch.setattr(
+        telegram_module,
+        "_get_channel_input",
+        AsyncMock(return_value=MagicMock(channel_id=1234567890, access_hash=777)),
+    )
+
+    entities = [MagicMock()]
+    result_mock = MagicMock()
+    mock_telethon_client.return_value = result_mock
+
+    await edit_message_entities(
+        chat_id=-1001234567890, message_id=42, text="hello", entities=entities
+    )
+
+    mock_telethon_client.assert_awaited_once()
+    request = mock_telethon_client.await_args.args[0]
+    assert isinstance(request, MessagesEditMessageRequest)
+    assert request.id == 42
+    assert request.message == "hello"
+    assert request.entities is entities
+    assert isinstance(request.peer, InputPeerChannel)
+    assert request.peer.channel_id == 1234567890
+    assert request.peer.access_hash == 777
 
 
 async def test_resolve_entity(mock_telethon_client: AsyncMock) -> None:
