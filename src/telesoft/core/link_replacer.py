@@ -7,9 +7,9 @@ Provides:
 - :func:`find_posts_with_pattern` — filter a list of messages returned by
   :func:`telesoft.core.telegram.get_last_messages` down to those matching
   *pattern*. Does NOT fetch from Telegram.
-- :func:`replace_link_in_post` — fetches a single message by id via the Telethon
-  bot client (by-ID only — see ADR 2026-07-20-pr-14-spike-telethon), applies the
-  regex, and calls ``edit_message`` when at least one replacement was made.
+- :func:`replace_link_in_post` — applies the regex to an already-fetched
+  message object (no re-fetch) and calls ``edit_message`` /
+  ``edit_message_entities`` when at least one replacement was made.
 - :func:`replace_link_in_posts` — orchestrates :func:`replace_link_in_post`
   over a pre-filtered list of messages and reports a summary dict.
 """
@@ -21,7 +21,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from loguru import logger
-from telethon.tl.types import MessageEntityTextUrl
 
 from telesoft.core import telegram as telegram_module
 
@@ -54,34 +53,26 @@ def _entity_urls(message: Any) -> list[str]:
 
 
 async def replace_link_in_post(
-    chat_id: int, message_id: int, pattern: str, new_link: str
+    chat_id: int, message: Any, pattern: str, new_link: str
 ) -> dict[str, Any]:
-    """Fetch a post by id, regex-replace links, and edit it via Telethon.
+    """Regex-replace links in an already-fetched *message* and edit it via Telethon.
 
     Two replacement paths are supported:
     - URL appears in the raw ``message.text`` → regex substitution is applied
       and the post is edited via ``edit_message``.
     - URL appears inside a ``MessageEntityTextUrl`` entity (formatted link) →
-      matching entities are rebuilt with *new_link* and the post is edited via
-      the raw ``EditMessageRequest`` API.
+      matching entities have their ``url`` mutated in-place to *new_link* and
+      the post is edited via ``edit_message_entities`` (which uses Telethon's
+      high-level ``client.edit_message(formatting_entities=...)``).
 
     Returns a result dict describing the outcome:
-    - ``{"success": False, "error": "Message not found", "message_id": ...}``
-      when the message could not be fetched.
     - ``{"success": True, "skipped": True, ...}`` when zero replacements were
-      made (the post is left untouched and ``edit_message`` is NOT called).
+      made (the post is left untouched and no edit is performed).
     - ``{"success": True, "edited": True, "replacements": N, ...}`` on a
       successful edit.
     - ``{"success": False, "error": str(exc), ...}`` if the edit call raises.
     """
-    message = await telegram_module.get_message(chat_id, message_id)
-    if message is None:
-        return {
-            "success": False,
-            "error": "Message not found",
-            "message_id": message_id,
-        }
-
+    message_id = int(message.id)
     regex = re.compile(pattern)
     text = message.text or ""
     new_text, text_count = replace_link(text, pattern, new_link)
@@ -122,20 +113,14 @@ async def replace_link_in_post(
                 "replacements": text_count,
                 "match_source": "text",
             }
-        new_entities: list[Any] = []
-        for e in entities:
-            if hasattr(e, "url") and regex.search(e.url):
-                new_entities.append(
-                    MessageEntityTextUrl(offset=e.offset, length=e.length, url=new_link)
-                )
-            else:
-                new_entities.append(e)
+        for e in entity_matches:
+            e.url = new_link
         logger.info(
             "replace_link_in_post: msg {} match in entity (replacements={})",
             message_id,
             entity_count,
         )
-        await telegram_module.edit_message_entities(chat_id, message_id, text, new_entities)
+        await telegram_module.edit_message_entities(chat_id, message, entities)
     except Exception as exc:
         return {
             "success": False,
@@ -203,7 +188,7 @@ async def replace_link_in_posts(
     failed = 0
     skipped = 0
     for message in messages:
-        result = await replace_link_in_post(chat_id, int(message.id), pattern, new_link)
+        result = await replace_link_in_post(chat_id, message, pattern, new_link)
         if result.get("success"):
             if result.get("edited"):
                 edited += 1
