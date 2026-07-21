@@ -38,6 +38,12 @@ services:
     restart: unless-stopped
     networks:
       - telesoft-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     logging:
       <<: *default-logging
 
