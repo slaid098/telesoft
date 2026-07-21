@@ -31,7 +31,6 @@ docker compose up --build              # Run full stack
 
 - Backend source in `src/telesoft/` (src layout)
 - Config via `.env` (see `.env.example` for all variables)
-- Session storage in `app_data/bot.session`
 - DB in `app_data/telesoft.db`
 - Commit style: `type(scope): description` (English, ≤72 chars)
 - No comments unless explicitly requested

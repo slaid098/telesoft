@@ -1,8 +1,10 @@
 """Bot-mode Telethon client wrapper.
 
-Singleton TelegramClient backed by a file session (``settings.session_path``)
-so the bot does not re-login between process restarts. Only by-ID message
-fetch is supported — history iteration (``iter_messages`` /
+Singleton TelegramClient backed by an in-memory ``StringSession`` so the
+bot does not touch the filesystem. Bot-token auth is instant (no phone+code
+flow), so a file session brings no benefit and causes SQLite lock conflicts
+when tests and the container run simultaneously. Only by-ID message fetch
+is supported — history iteration (``iter_messages`` /
 ``get_messages(limit=...)``) is forbidden for bot accounts (see ADR
 2026-07-20-pr-14-spike-telethon).
 """
@@ -16,6 +18,7 @@ from typing import Any
 from loguru import logger
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, RPCError
+from telethon.sessions import StringSession
 from telethon.tl.functions.channels import GetMessagesRequest as ChannelsGetMessagesRequest
 from telethon.tl.functions.messages import EditMessageRequest as MessagesEditMessageRequest
 from telethon.tl.types import InputChannel, InputPeerChannel, Message
@@ -38,7 +41,7 @@ async def get_client() -> TelegramClient:
     if _state.client is None:
         settings = Settings.from_env()
         _state.client = TelegramClient(
-            settings.session_path,
+            StringSession(),
             settings.telegram_api_id,
             settings.telegram_api_hash,
             receive_updates=False,
@@ -59,7 +62,7 @@ async def start_client() -> TelegramClient:
         settings = Settings.from_env()
         await client.start(bot_token=settings.telegram_bot_token)
         _state.started = True
-        logger.info("Telethon client started (file session={})", settings.session_path)
+        logger.info("Telethon client started (StringSession)")
         return client
 
 

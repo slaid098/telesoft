@@ -44,7 +44,7 @@ Project map — обновляется docs-reviewer на каждый PR. Со�
 
 - **Backend** (`src/telesoft/`): FastAPI + aiosqlite + Telethon bot mode. Session auth via Starlette `SessionMiddleware` (signed cookies). Channels CRUD, replace-link runner with `asyncio.Semaphore`, EventBus pub/sub for WebSocket fan-out. Bot-mode Telethon client fetches posts by id and edits them (history iteration is forbidden for bots — see ADR PR#14).
 - **Frontend** (`web/`): SvelteKit 2 + Svelte 5 runes + TypeScript + Tailwind. Login, channels list + detail with replace-link form, jobs list with 5s auto-refresh, job detail with WebSocket realtime progress + logs.
-- **Telegram**: the bot is added as an admin to the target channel with "Edit Messages" permission. File session (`app_data/bot.session`) is reused across restarts.
+- **Telegram**: the bot is added as an admin to the target channel with "Edit Messages" permission. In-memory `StringSession` (no file on disk — bot-token auth is instant, no handshake to cache).
 
 ## Tech stack
 

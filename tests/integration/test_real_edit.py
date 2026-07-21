@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 
 from telesoft.config import Settings
 from telesoft.core.link_replacer import find_posts_with_pattern, replace_link_in_post
@@ -39,7 +40,7 @@ NEW_LINK = "https://new.example.com/edited"
 async def _client() -> TelegramClient:
     settings = Settings.from_env()
     client = TelegramClient(
-        settings.session_path,
+        StringSession(),
         settings.telegram_api_id,
         settings.telegram_api_hash,
         receive_updates=False,
