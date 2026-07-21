@@ -1,11 +1,11 @@
 ---
-pr: <PR-NUMBER>
+pr: 56
 issue: 55
 status: Accepted
 created: 2026-07-21
 ---
 
-# ADR — PR <PR-NUMBER>: pattern compiler + preview endpoint + pattern library DB
+# ADR — PR 56: pattern compiler + preview endpoint + pattern library DB
 
 ## Статус
 

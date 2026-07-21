@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 56
 issue: 55
 branch: feat/backend/pattern-compiler-preview-library
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR-NUMBER>: pattern compiler + preview endpoint + pattern library DB
+# Handoff — PR 56: pattern compiler + preview endpoint + pattern library DB
 
 ## Что сделано
 
