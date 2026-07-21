@@ -1,12 +1,12 @@
 ---
-pr: PLACEHOLDER
+pr: 46
 issue: 45
 status: Accepted
 created: 2026-07-21
 supersedes: 2026-07-20-pr-16-telegram-client.md (session storage decision)
 ---
 
-# ADR — PR PLACEHOLDER: use StringSession always instead of file session
+# ADR — PR 46: use StringSession always instead of file session
 
 ## Статус
 

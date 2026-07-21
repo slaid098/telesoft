@@ -1,12 +1,12 @@
 ---
-pr: PLACEHOLDER
+pr: 46
 issue: 45
 branch: fix/api/string-session
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR PLACEHOLDER: use StringSession always instead of file session
+# Handoff — PR 46: use StringSession always instead of file session
 
 ## Что сделано
 
@@ -62,7 +62,7 @@ PR#16 намеренно выбрал file session (`settings.session_path` = `a
 2. **SQLite lock conflicts** — integration tests (`tests/integration/test_real_edit.py`) открывали тот же `bot.session` файл, что и running контейнер. SQLite file lock блокировал запуск `uv run pytest -m integration` локально.
 3. **StringSession in-memory** — нет файла, нет lock conflict. Integration tests теперь запускаются локально без конфликтов с контейнером.
 
-ADR `docs/decisions/2026-07-20-pr-16-telegram-client.md` (Status=Accepted, file session) — пересматривается этим PR. Новый ADR `docs/decisions/2026-07-21-pr-PLACEHOLDER-string-session.md` (Status=Accepted, StringSession).
+ADR `docs/decisions/2026-07-20-pr-16-telegram-client.md` (Status=Accepted, file session) — пересматривается этим PR. Новый ADR `docs/decisions/2026-07-21-pr-46-string-session.md` (Status=Accepted, StringSession).
 
 ## Pending
 
