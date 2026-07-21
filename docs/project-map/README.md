@@ -44,7 +44,7 @@ Project map — обновляется docs-reviewer на каждый PR. Со�
 
 - **Backend** (`src/telesoft/`): FastAPI + aiosqlite + Telethon bot mode. Session auth via Starlette `SessionMiddleware` (signed cookies). Channels CRUD, replace-link runner with `asyncio.Semaphore`, EventBus pub/sub for WebSocket fan-out. Bot-mode Telethon client fetches posts by id and edits them (history iteration is forbidden for bots — see ADR PR#14).
 - **Frontend** (`web/`): SvelteKit 2 + Svelte 5 runes + TypeScript + Tailwind. Login, channels list + detail with replace-link form, jobs list with 5s auto-refresh, job detail with WebSocket realtime progress + logs.
-- **Telegram**: the bot is added as an admin to the target channel with "Edit Messages" permission. File session (`app_data/bot.session`) is reused across restarts.
+- **Telegram**: the bot is added as an admin to the target channel with "Edit Messages" permission. In-memory `StringSession` (no file on disk — bot-token auth is instant, no handshake to cache).
 
 ## Tech stack
 
@@ -117,6 +117,7 @@ telesoft/
 - [PR#28 — finalize README + smoke test](../decisions/2026-07-20-pr-28-finalize-readme.md)
 - [PR#30 — spike v2 channels.GetMessagesRequest](../decisions/2026-07-20-pr-30-spike-telethon-v2.md)
 - [PR#44 — entity URL handling](../decisions/2026-07-21-pr-44-entity-url-handling.md)
+- [PR#46 — StringSession instead of file session](../decisions/2026-07-21-pr-46-string-session.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -132,3 +133,4 @@ telesoft/
 - [PR#28 — finalize README + smoke test](../handoff/pr-28-finalize-readme.md)
 - [PR#30 — spike v2 channels.GetMessagesRequest](../handoff/pr-30-spike-telethon-v2.md)
 - [PR#44 — entity URL handling](../handoff/pr-44-entity-url-handling.md)
+- [PR#46 — StringSession instead of file session](../handoff/pr-46-string-session.md)

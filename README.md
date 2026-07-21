@@ -106,7 +106,7 @@ All variables are read by `Settings.from_env()` in `src/telesoft/config.py`. Cop
 | `TELEGRAM_API_ID`        | Telegram API id from my.telegram.org                   | yes      | `0`                    |
 | `TELEGRAM_API_HASH`      | Telegram API hash from my.telegram.org                 | yes      | `""`                   |
 | `TELEGRAM_BOT_TOKEN`     | Bot token from @BotFather                              | yes      | `""`                   |
-| `SESSION_PATH`           | Telethon session file path (reused across restarts)    | no       | `app_data/bot.session` |
+| `SESSION_PATH`           | Telethon session file path (deprecated, unused — StringSession is in-memory) | no       | `app_data/bot.session` |
 | `JOBS_MAX_CONCURRENCY`   | Max concurrent post edits per runner                    | no       | `3`                    |
 
 ## Testing
@@ -144,7 +144,7 @@ telesoft/
 ├── tests/               # Backend unit tests — see docs/project-map/tests.md
 ├── web/                 # SvelteKit frontend — see docs/project-map/frontend.md
 ├── scripts/             # Standalone scripts (spike, smoke test) — see docs/project-map/scripts.md
-├── app_data/            # Runtime storage (db + bot.session), gitignored
+├── app_data/            # Runtime storage (db), gitignored
 ├── docs/
 │   ├── project-map/     # Module-by-module structure
 │   ├── handoff/         # PR handoff documents
@@ -164,7 +164,7 @@ See [`docs/project-map/README.md`](docs/project-map/README.md) for the full modu
 1. Create a bot via [@BotFather](https://t.me/BotFather) and copy the bot token (`TELEGRAM_BOT_TOKEN`).
 2. Get `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` at [my.telegram.org](https://my.telegram.org) → "API development tools".
 3. Add the bot to the target channel as an administrator and grant the "Edit Messages" permission (and "Post Messages" if you want the smoke/spike scripts to create test posts).
-4. The bot uses a file session (`app_data/bot.session`) so the MTProto handshake happens only once.
+4. The bot uses an in-memory `StringSession` (no file on disk). Bot-token auth is instant, so there is no MTProto handshake to cache across restarts.
 
 **Known limitation**: Telegram bots cannot iterate channel history (`get_messages`/`iter_messages` raise `BotMethodInvalidError`). The user must therefore supply the exact post URLs; telesoft fetches each post by id and edits it. See the spike ADR at `docs/decisions/2026-07-20-pr-14-spike-telethon.md` for details.
 
