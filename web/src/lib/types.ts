@@ -81,7 +81,7 @@ export type ReplaceLinkRequest = {
   post_link: string;
   limit: number;
   mode: ReplaceMode;
-  keep_tail: boolean;
+  full_replace: boolean;
 };
 
 export type PreviewRequest = {
@@ -89,7 +89,7 @@ export type PreviewRequest = {
   new_link: string;
   post_link: string;
   mode: ReplaceMode;
-  keep_tail: boolean;
+  full_replace: boolean;
   limit: number;
 };
 

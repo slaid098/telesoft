@@ -22,8 +22,10 @@ class ReplaceLinkRequest(BaseModel):
     posts ending at ``max_id`` are fetched and filtered by ``pattern``.
 
     ``mode`` selects how *pattern* is interpreted (``"simple"`` wildcards,
-    ``"library"`` / ``"advanced"`` raw regex). ``keep_tail`` strips a
-    trailing ``-s-*`` segment so it survives the replacement.
+    ``"library"`` / ``"advanced"`` raw regex). ``full_replace`` appends
+    ``.*`` to the compiled pattern so the whole link is replaced
+    (``True``, default, "Полная замена"); when ``False`` only the matched
+    prefix is replaced and the tail stays ("Частичная").
     """
 
     pattern: str
@@ -31,7 +33,7 @@ class ReplaceLinkRequest(BaseModel):
     post_link: str
     limit: int = Field(default=100, ge=1, le=1000)
     mode: str = "advanced"
-    keep_tail: bool = False
+    full_replace: bool = True
 
 
 class PreviewRequest(BaseModel):
@@ -41,7 +43,7 @@ class PreviewRequest(BaseModel):
     new_link: str
     post_link: str
     mode: str = "advanced"
-    keep_tail: bool = False
+    full_replace: bool = True
     limit: int = Field(default=100, ge=1, le=1000)
 
 

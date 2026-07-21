@@ -125,7 +125,7 @@ describe("ReplaceLinkForm", () => {
     expect(limitInput.value).toBe("100");
   });
 
-  it("submits with pattern, new_link, post_link, mode and keep_tail", async () => {
+  it("submits with pattern, new_link, post_link, mode and full_replace", async () => {
     vi.mocked(replaceLink).mockResolvedValue({ job_id: 5 });
     render(ReplaceLinkForm, { props: { channelId: 1 } });
 
@@ -150,7 +150,7 @@ describe("ReplaceLinkForm", () => {
         post_link: "https://t.me/test/140",
         limit: 100,
         mode: "simple",
-        keep_tail: false,
+        full_replace: true,
       });
     });
     await waitFor(() => {
@@ -158,7 +158,7 @@ describe("ReplaceLinkForm", () => {
     });
   });
 
-  it("sends keep_tail=true when checkbox is checked", async () => {
+  it("sends full_replace=false when partial radio is selected", async () => {
     vi.mocked(replaceLink).mockResolvedValue({ job_id: 7 });
     render(ReplaceLinkForm, { props: { channelId: 1 } });
 
@@ -171,8 +171,8 @@ describe("ReplaceLinkForm", () => {
     await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
       target: { value: "https://t.me/test/140" },
     });
-    const keepTail = screen.getByLabelText(/Сохранить хвост/i);
-    await fireEvent.click(keepTail);
+    const partialRadio = screen.getByRole("radio", { name: /Частичная/i });
+    await fireEvent.click(partialRadio);
 
     const form = screen.getByRole("button", { name: /Запустить/i }).closest("form");
     if (!form) throw new Error("form not found");
@@ -182,12 +182,20 @@ describe("ReplaceLinkForm", () => {
       expect(replaceLink).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          keep_tail: true,
+          full_replace: false,
           mode: "simple",
           post_link: "https://t.me/test/140",
         }),
       );
     });
+  });
+
+  it("defaults to full_replace=true (Полная замена radio checked)", () => {
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+    const fullRadio = screen.getByRole("radio", { name: /Полная замена/i }) as HTMLInputElement;
+    const partialRadio = screen.getByRole("radio", { name: /Частичная/i }) as HTMLInputElement;
+    expect(fullRadio.checked).toBe(true);
+    expect(partialRadio.checked).toBe(false);
   });
 
   it("switches to Advanced mode", async () => {
@@ -234,7 +242,7 @@ describe("ReplaceLinkForm", () => {
         new_link: "https://new.example.com",
         post_link: "https://t.me/test/140",
         mode: "simple",
-        keep_tail: false,
+        full_replace: true,
         limit: 100,
       });
     });
@@ -270,7 +278,7 @@ describe("ReplaceLinkForm", () => {
       post_link: "https://t.me/test/140",
       limit: 100,
       mode: "simple",
-      keep_tail: false,
+      full_replace: true,
     });
   });
 

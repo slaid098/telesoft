@@ -7,7 +7,6 @@ import re
 import pytest
 
 from telesoft.core.pattern_compiler import (
-    apply_keep_tail,
     compile_pattern,
     compile_simple,
 )
@@ -52,57 +51,61 @@ def test_compile_simple_produces_compilable_regex() -> None:
     assert re.search(pattern, "https://t.me/bot?start=flow-123")
 
 
-def test_apply_keep_tail_optional_capture() -> None:
-    pattern = r"https://t\.me/bot\?start=flow-\d+-\d+-\d+(-s-\d+)?"
-    assert apply_keep_tail(pattern) == r"https://t\.me/bot\?start=flow-\d+-\d+-\d+"
+def test_compile_pattern_simple_default_full_replace_appends_tail() -> None:
+    """full_replace=True (default) appends .* to simple-mode patterns without a tail."""
+    compiled = compile_pattern("https://t.me/bot?start=flow-123", "simple", True)
+    assert compiled.endswith(".*")
+    assert re.search(compiled, "https://t.me/bot?start=flow-123-s-456")
 
 
-def test_apply_keep_tail_bare_digits() -> None:
-    pattern = r"https://t\.me/bot\?start=flow-\d+-s-\d+"
-    assert apply_keep_tail(pattern) == r"https://t\.me/bot\?start=flow-\d+"
+def test_compile_pattern_simple_without_full_replace_keeps_pattern() -> None:
+    """full_replace=False — the simple-mode pattern stays as-is (no .* appended)."""
+    compiled = compile_pattern("https://t.me/bot?start=flow-", "simple", False)
+    assert compiled == r"https://t\.me/bot\?start=flow\-"
+    assert not compiled.endswith(".*")
 
 
-def test_apply_keep_tail_wildcard_tail() -> None:
-    pattern = r"https://t\.me/bot\?start=foo-s-.*"
-    assert apply_keep_tail(pattern) == r"https://t\.me/bot\?start=foo"
-
-
-def test_apply_keep_tail_no_tail_returns_unchanged() -> None:
-    pattern = r"https://t\.me/bot\?start=flow-\d+"
-    assert apply_keep_tail(pattern) == pattern
-
-
-def test_apply_keep_tail_empty_pattern() -> None:
-    assert apply_keep_tail("") == ""
-
-
-def test_compile_pattern_simple() -> None:
-    assert compile_pattern("https://t.me/bot?start=flow-*", "simple", False) == (
-        r"https://t\.me/bot\?start=flow\-.*"
-    )
-
-
-def test_compile_pattern_simple_with_keep_tail() -> None:
-    compiled = compile_pattern("https://t.me/bot?start=flow-*-s-*", "simple", True)
-    # After compile_simple: "https://t\.me/bot\?start=flow\-.*-s\-.*"
-    # apply_keep_tail strips trailing "-s-.*" → "https://t\.me/bot\?start=flow\-.*"
+def test_compile_pattern_simple_with_trailing_wildcard_not_duplicated() -> None:
+    """full_replace=True — when the pattern already ends with .* it is not duplicated."""
+    compiled = compile_pattern("https://t.me/bot?start=flow-*", "simple", True)
     assert compiled == r"https://t\.me/bot\?start=flow\-.*"
-    assert re.search(compiled, "https://t.me/bot?start=flow-abc-s-123")
+    assert not compiled.endswith(".*.*")
 
 
-def test_compile_pattern_advanced_passthrough() -> None:
+def test_compile_pattern_simple_with_trailing_s_plus_not_appended() -> None:
+    """full_replace=True — when the pattern ends with \\S+ nothing is appended."""
+    compiled = compile_pattern(r"https://t\.me/bot\?\S+", "advanced", True)
+    assert compiled == r"https://t\.me/bot\?\S+"
+
+
+def test_compile_pattern_advanced_passthrough_default_full_replace() -> None:
+    """advanced mode with full_replace=True appends .* to a bare pattern."""
+    compiled = compile_pattern(r"https://t\.me/bot\?start=flow-\d+", "advanced", True)
+    assert compiled == r"https://t\.me/bot\?start=flow-\d+.*"
+
+
+def test_compile_pattern_advanced_without_full_replace_passthrough() -> None:
+    """advanced mode with full_replace=False returns the raw pattern unchanged."""
     raw = r"https://t\.me/bot\?start=flow-\d+"
     assert compile_pattern(raw, "advanced", False) == raw
 
 
-def test_compile_pattern_library_passthrough() -> None:
+def test_compile_pattern_library_passthrough_with_full_replace() -> None:
+    """library mode behaves like advanced — appends .* with full_replace=True."""
+    compiled = compile_pattern(r"https://t\.me/bot\?start=flow-\d+", "library", True)
+    assert compiled == r"https://t\.me/bot\?start=flow-\d+.*"
+
+
+def test_compile_pattern_library_without_full_replace() -> None:
+    """library mode with full_replace=False returns the raw pattern unchanged."""
     raw = r"https://t\.me/bot\?start=flow-\d+"
     assert compile_pattern(raw, "library", False) == raw
 
 
-def test_compile_pattern_advanced_with_keep_tail() -> None:
-    raw = r"https://t\.me/bot\?start=flow-\d+(-s-\d+)?"
-    assert compile_pattern(raw, "advanced", True) == r"https://t\.me/bot\?start=flow-\d+"
+def test_compile_pattern_default_full_replace_is_true() -> None:
+    """The default value of full_replace is True (backward-compat with issue #63)."""
+    compiled = compile_pattern(r"https://t\.me/bot\?start=flow-\d+", "advanced")
+    assert compiled.endswith(".*")
 
 
 def test_compile_pattern_unknown_mode_raises() -> None:
