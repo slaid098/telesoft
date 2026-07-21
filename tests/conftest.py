@@ -137,6 +137,7 @@ class MockMessage:
     chat_id: int
     message: str = ""
     date: object = None
+    entities: list[object] | None = None
 
 
 @pytest.fixture

@@ -140,6 +140,11 @@ class JobRunner:
                 messages = await telegram_module.get_last_messages(chat_id, limit)
                 matching = await find_posts_with_pattern(messages, pattern)
                 total = len(matching)
+                logger.info(
+                    "discovery: fetched={}, matched={}",
+                    len(messages),
+                    total,
+                )
                 await self._set_total(job_id, total)
                 await self._publish(
                     Event(type="job_started", data={"job_id": job_id, "total": total})

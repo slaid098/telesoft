@@ -11,7 +11,7 @@ key_files:
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-20
+last_updated: 2026-07-21
 ---
 
 # telesoft — Project Map
@@ -85,7 +85,7 @@ telesoft/
 - [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts + components/, routes/{+layout,+page,login,channels,jobs}, tests)
 - [docker.md](docker.md) — `docker-compose.yml`, `Dockerfile.api`, `Dockerfile.web`, `.env.example`, `.dockerignore`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
-- [tests.md](tests.md) — `tests/` (backend unit tests, 101 total), `web/src/tests/` (frontend 26 tests: login 3, channels 9, replace-link 4, jobs 5, layout 3, api 2)
+- [tests.md](tests.md) — `tests/` (backend unit tests + integration tests PR#44, 122 unit + 4 integration opt-in), `web/src/tests/` (frontend 26 tests: login 3, channels 9, replace-link 4, jobs 5, layout 3, api 2)
 - [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC + smoke test, НЕ часть backend)
 
 ## Patterns
@@ -116,6 +116,7 @@ telesoft/
 - [PR#26 — channels UI](../decisions/2026-07-20-pr-26-channels-ui.md)
 - [PR#28 — finalize README + smoke test](../decisions/2026-07-20-pr-28-finalize-readme.md)
 - [PR#30 — spike v2 channels.GetMessagesRequest](../decisions/2026-07-20-pr-30-spike-telethon-v2.md)
+- [PR#44 — entity URL handling](../decisions/2026-07-21-pr-44-entity-url-handling.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -130,3 +131,4 @@ telesoft/
 - [PR#26 — channels UI](../handoff/pr-26-channels-ui.md)
 - [PR#28 — finalize README + smoke test](../handoff/pr-28-finalize-readme.md)
 - [PR#30 — spike v2 channels.GetMessagesRequest](../handoff/pr-30-spike-telethon-v2.md)
+- [PR#44 — entity URL handling](../handoff/pr-44-entity-url-handling.md)
