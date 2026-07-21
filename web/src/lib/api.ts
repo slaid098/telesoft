@@ -1,5 +1,13 @@
 import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
+import type {
+  PatternCreateRequest,
+  PatternListResponse,
+  PatternResponse,
+  PreviewRequest,
+  PreviewResponse,
+  ReplaceLinkRequest,
+} from "$lib/types";
 
 export const API_BASE: string =
   (import.meta.env.VITE_API_BASE as string | undefined) ??
@@ -88,3 +96,29 @@ export const api = {
 };
 
 export type ApiClient = typeof api;
+
+export async function previewReplace(
+  channelId: number,
+  payload: PreviewRequest,
+): Promise<PreviewResponse> {
+  return api.post<PreviewResponse>(`/api/channels/${channelId}/preview-replace`, payload);
+}
+
+export async function listPatterns(): Promise<PatternListResponse> {
+  return api.get<PatternListResponse>("/api/patterns");
+}
+
+export async function createPattern(payload: PatternCreateRequest): Promise<PatternResponse> {
+  return api.post<PatternResponse>("/api/patterns", payload);
+}
+
+export async function deletePattern(id: number): Promise<void> {
+  await api.del<void>(`/api/patterns/${id}`);
+}
+
+export async function replaceLink(
+  channelId: number,
+  payload: ReplaceLinkRequest,
+): Promise<{ job_id: number }> {
+  return api.post<{ job_id: number }>(`/api/channels/${channelId}/replace-link`, payload);
+}
