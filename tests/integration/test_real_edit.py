@@ -105,9 +105,7 @@ async def test_find_entity_url(test_entity_url_msg: Any) -> None:
     assert len(matching) == 1
 
 
-async def test_replace_text_url(
-    test_text_url_msg: Any, telegram_client: TelegramClient
-) -> None:
+async def test_replace_text_url(test_text_url_msg: Any, telegram_client: TelegramClient) -> None:
     """Replacing a URL in raw text edits the post in place."""
     result = await replace_link_in_post(CHANNEL_ID, test_text_url_msg, PATTERN, NEW_LINK)
     assert result.get("edited") is True

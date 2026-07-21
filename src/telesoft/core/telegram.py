@@ -202,9 +202,7 @@ def parse_post_link(link: str) -> int:
         raise ValueError(msg) from exc
 
 
-async def get_last_messages(
-    channel_id: int, limit: int = 100, max_id: int = 0
-) -> list[Message]:
+async def get_last_messages(channel_id: int, limit: int = 100, max_id: int = 0) -> list[Message]:
     """Return up to ``limit`` most recent channel posts via high-level API.
 
     Uses ``client.get_messages(chat_id, ids=[...])`` (works for bot-admin).

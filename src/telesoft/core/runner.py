@@ -111,9 +111,7 @@ class JobRunner:
             existing.cancel()
         self._cancelled.discard(job_id)
         assert self._semaphore is not None
-        task = asyncio.create_task(
-            self._run_job(job_id, chat_id, limit, pattern, new_link, max_id)
-        )
+        task = asyncio.create_task(self._run_job(job_id, chat_id, limit, pattern, new_link, max_id))
         self._tasks[job_id] = task
         logger.bind(job_id=job_id, max_concurrency=self._max_concurrency).info(
             "replace-link job submitted to runner"
@@ -145,9 +143,7 @@ class JobRunner:
         async with sem:
             try:
                 await self._mark_running(job_id)
-                messages = await telegram_module.get_last_messages(
-                    chat_id, limit, max_id
-                )
+                messages = await telegram_module.get_last_messages(chat_id, limit, max_id)
                 matching = await find_posts_with_pattern(messages, pattern)
                 total = len(matching)
                 logger.info(

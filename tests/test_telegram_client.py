@@ -233,9 +233,7 @@ async def test_get_last_messages_with_max_id(
 
     assert result == range_messages
     mock_telethon_client.get_messages.assert_awaited_once()
-    assert mock_telethon_client.get_messages.await_args.kwargs["ids"] == list(
-        range(140, 130, -1)
-    )
+    assert mock_telethon_client.get_messages.await_args.kwargs["ids"] == list(range(140, 130, -1))
 
 
 async def test_get_last_messages_max_id_zero_returns_empty(
