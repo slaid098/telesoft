@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import aiosqlite
 import pytest
@@ -148,13 +148,6 @@ def mock_message() -> MockMessage:
     return MockMessage(id=123, text="hello", chat_id=-1001234567890, message="hello")
 
 
-def mock_channel_messages(messages: list[object | None]) -> AsyncMock:
-    """Build a ChannelMessages-like AsyncMock with a ``.messages`` list."""
-    result = MagicMock()
-    result.messages = list(messages)
-    return result
-
-
 @pytest.fixture
 async def mock_telethon_client(
     mock_message: MockMessage,
@@ -175,8 +168,6 @@ async def mock_telethon_client(
     client.start = AsyncMock()
     client.disconnect = AsyncMock()
     client.is_connected.return_value = True
-    client.side_effect = None
-    client.return_value = mock_channel_messages([])
 
     def _fake_constructor(*_args: object, **_kwargs: object) -> AsyncMock:
         return client
