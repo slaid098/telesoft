@@ -1,71 +1,122 @@
 <script lang="ts">
 import { goto } from "$app/navigation";
-import { ApiError, api } from "$lib/api";
-import type { ReplaceLinkRequest } from "$lib/types";
+import { ApiError, listPatterns, previewReplace, replaceLink } from "$lib/api";
+import PatternLibrary from "$lib/components/PatternLibrary.svelte";
+import type { PatternListResponse, PreviewResponse, ReplaceMode } from "$lib/types";
 
 type Props = {
   channelId: number;
   onSubmit?: (response: { job_id: number }) => void;
+  onPreview?: (response: PreviewResponse) => void;
+  runSignal?: { nonce: number };
 };
 
-const { channelId, onSubmit }: Props = $props();
+const { channelId, onSubmit, onPreview, runSignal }: Props = $props();
 
+const MODES: { value: ReplaceMode; label: string }[] = [
+  { value: "simple", label: "Simple" },
+  { value: "library", label: "Pattern Library" },
+  { value: "advanced", label: "Advanced" },
+];
+
+let mode = $state<ReplaceMode>("simple");
 let pattern = $state("");
 let newLink = $state("");
 let limit = $state(100);
+let keepTail = $state(false);
 let error = $state<string | null>(null);
 let submitting = $state(false);
+let previewing = $state(false);
+
+let patterns = $state<PatternListResponse | null>(null);
+let selectedPatternId = $state<string>("");
+let showLibrary = $state(false);
 
 const trimmedPattern = $derived(pattern.trim());
 const trimmedNewLink = $derived(newLink.trim());
 const limitValid = $derived(Number.isFinite(limit) && limit >= 1 && limit <= 1000);
-
-let patternError = $state<string | null>(null);
-$effect(() => {
-  if (trimmedPattern.length === 0) {
-    patternError = null;
-    return;
-  }
-  try {
-    new RegExp(trimmedPattern);
-    patternError = null;
-  } catch (err) {
-    patternError = err instanceof Error ? err.message : "Invalid regex";
-  }
-});
+const selectedPattern = $derived(
+  patterns?.patterns.find((p) => String(p.id) === selectedPatternId) ?? null,
+);
+const effectivePattern = $derived(
+  mode === "library" ? (selectedPattern?.pattern ?? "") : trimmedPattern,
+);
 
 const canSubmit = $derived(
   !submitting &&
-    trimmedPattern.length > 0 &&
-    patternError === null &&
+    !previewing &&
+    effectivePattern.length > 0 &&
     trimmedNewLink.length > 0 &&
-    limitValid,
+    limitValid &&
+    (mode !== "library" || selectedPattern !== null),
 );
 
-async function handleSubmit(event: Event) {
-  event.preventDefault();
-  if (!canSubmit) {
-    if (patternError) {
-      error = patternError;
-    } else if (!limitValid) {
-      error = "Limit must be between 1 and 1000";
+async function loadPatterns() {
+  try {
+    patterns = await listPatterns();
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error = err.message || "Failed to load patterns";
     } else {
-      error = "Fill all required fields";
+      error = "Network error";
     }
+  }
+}
+
+$effect(() => {
+  if (mode === "library" && patterns === null) {
+    void loadPatterns();
+  }
+});
+
+$effect(() => {
+  if (runSignal && runSignal.nonce > 0) {
+    void submitJob();
+  }
+});
+
+async function handlePreview() {
+  if (!canSubmit) {
+    error = "Fill all required fields";
+    return;
+  }
+  error = null;
+  previewing = true;
+  try {
+    const result = await previewReplace(channelId, {
+      pattern: effectivePattern,
+      new_link: trimmedNewLink,
+      mode,
+      keep_tail: keepTail,
+      limit,
+    });
+    onPreview?.(result);
+  } catch (err) {
+    if (err instanceof ApiError) {
+      error = err.message || "Preview failed";
+    } else {
+      error = "Network error";
+    }
+  } finally {
+    previewing = false;
+  }
+}
+
+async function submitJob() {
+  if (!canSubmit) {
+    error = "Fill all required fields";
     return;
   }
   error = null;
   submitting = true;
   try {
-    const payload: ReplaceLinkRequest = {
-      pattern: trimmedPattern,
+    const result = await replaceLink(channelId, {
+      pattern: effectivePattern,
       new_link: trimmedNewLink,
       limit,
-    };
-    const result = await api.post<{ job_id: number }>(
-      `/api/channels/${channelId}/replace-link`,
-      payload,
-    );
+      mode,
+      keep_tail: keepTail,
+    });
     onSubmit?.(result);
     await goto(`/jobs/${result.job_id}`);
   } catch (err) {
@@ -78,35 +129,108 @@ async function handleSubmit(event: Event) {
     submitting = false;
   }
 }
+
+async function handleSubmit(event: Event) {
+  event.preventDefault();
+  await submitJob();
+}
 </script>
 
 <form class="space-y-4" onsubmit={handleSubmit}>
   <h2 class="text-lg font-semibold text-white">Replace link</h2>
 
-  <div>
-    <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
-      Pattern (regex)
-    </label>
-    <input
-      id="rl-pattern"
-      type="text"
-      bind:value={pattern}
-      placeholder="https://old\\.example\\.com"
-      class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-      required
-    />
-    {#if patternError}
-      <p class="mt-1 text-xs text-red-400">Invalid regex: {patternError}</p>
-    {:else}
-      <p class="mt-1 text-xs text-slate-400">
-        Regex для поиска старой ссылки, напр. https://old\.example\.com
-      </p>
-    {/if}
+  <div role="tablist" class="flex gap-1 rounded-md border border-slate-700 bg-slate-800 p-1">
+    {#each MODES as m (m.value)}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === m.value}
+        class={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition ${
+          mode === m.value
+            ? "bg-brand-600 text-white"
+            : "text-slate-300 hover:bg-slate-700"
+        }`}
+        onclick={() => (mode = m.value)}
+      >
+        {m.label}
+      </button>
+    {/each}
   </div>
+
+  {#if mode === "simple"}
+    <div>
+      <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
+        Найти ссылки
+      </label>
+      <input
+        id="rl-pattern"
+        type="text"
+        bind:value={pattern}
+        placeholder="https://t.me/bot?start=flow-*"
+        class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+        required
+      />
+      <p class="mt-1 text-xs text-slate-400">Используй <code class="text-brand-300">*</code> для любого текста</p>
+    </div>
+  {:else if mode === "library"}
+    <div>
+      <label for="rl-pattern-select" class="mb-1 block text-xs font-medium text-slate-300">
+        Паттерн из библиотеки
+      </label>
+      {#if patterns === null}
+        <p class="text-xs text-slate-400">Загрузка…</p>
+      {:else if patterns.patterns.length === 0}
+        <p class="text-xs text-slate-400">Библиотека пуста. Добавь свой паттерн через «Управление паттернами».</p>
+      {:else}
+        <select
+          id="rl-pattern-select"
+          bind:value={selectedPatternId}
+          class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          required
+        >
+          <option value="" disabled>Выберите паттерн…</option>
+          {#each patterns.patterns as p (p.id)}
+            <option value={String(p.id)}>
+              {p.name}{#if p.description} — {p.description}{/if}
+            </option>
+          {/each}
+        </select>
+        {#if selectedPattern}
+          <p class="mt-1 text-xs text-slate-400">
+            Regex: <code class="text-slate-300">{selectedPattern.pattern}</code>
+          </p>
+        {/if}
+      {/if}
+      <button
+        type="button"
+        class="mt-2 text-xs text-brand-400 hover:text-brand-300"
+        onclick={() => (showLibrary = true)}
+      >
+        Управление паттернами
+      </button>
+    </div>
+  {:else}
+    <div>
+      <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
+        Pattern (raw regex)
+      </label>
+      <input
+        id="rl-pattern"
+        type="text"
+        bind:value={pattern}
+        placeholder="https://old\\.example\\.com"
+        class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+        required
+      />
+      <p class="mt-1 text-xs text-slate-400">
+        Regex для поиска. Валидация выполняется на backend (ошибка вернётся в ответе).
+      </p>
+    </div>
+  {/if}
 
   <div>
     <label for="rl-new-link" class="mb-1 block text-xs font-medium text-slate-300">
-      New link
+      Заменить на
     </label>
     <input
       id="rl-new-link"
@@ -116,12 +240,16 @@ async function handleSubmit(event: Event) {
       class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       required
     />
-    <p class="mt-1 text-xs text-slate-400">Чем заменить, напр. https://new.example.com</p>
   </div>
+
+  <label class="flex items-center gap-2 text-sm text-slate-300">
+    <input type="checkbox" bind:checked={keepTail} class="rounded border-slate-700 bg-slate-800" />
+    Сохранить хвост (<code class="text-xs text-slate-400">-s-*</code>)
+  </label>
 
   <div>
     <label for="rl-limit" class="mb-1 block text-xs font-medium text-slate-300">
-      Limit (last N posts to scan)
+      Limit (последних N постов для сканирования)
     </label>
     <input
       id="rl-limit"
@@ -133,9 +261,7 @@ async function handleSubmit(event: Event) {
       class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       required
     />
-    <p class="mt-1 text-xs text-slate-400">
-      Сколько последних постов канала сканировать (1-1000, default 100)
-    </p>
+    <p class="mt-1 text-xs text-slate-400">1-1000, по умолчанию 100</p>
   </div>
 
   {#if error}
@@ -146,11 +272,29 @@ async function handleSubmit(event: Event) {
 
   <div class="flex items-center justify-end gap-2">
     <button
+      type="button"
+      onclick={handlePreview}
+      disabled={!canSubmit}
+      class="rounded-md border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {previewing ? "Предпросмотр…" : "Предпросмотр"}
+    </button>
+    <button
       type="submit"
       disabled={!canSubmit}
       class="rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {submitting ? "Starting…" : "Run replace-link"}
+      {submitting ? "Запуск…" : "Запустить"}
     </button>
   </div>
 </form>
+
+{#if showLibrary}
+  <PatternLibrary
+    onClose={() => (showLibrary = false)}
+    onPatternsChanged={() => {
+      patterns = null;
+      void loadPatterns();
+    }}
+  />
+{/if}

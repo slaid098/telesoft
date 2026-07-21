@@ -1,6 +1,7 @@
 <script lang="ts">
+import PreviewModal from "$lib/components/PreviewModal.svelte";
 import ReplaceLinkForm from "$lib/components/ReplaceLinkForm.svelte";
-import type { Channel, Job } from "$lib/types";
+import type { Channel, Job, PreviewResponse } from "$lib/types";
 import { JOB_STATUS_LABELS } from "$lib/types";
 
 type Props = { data: { channel: Channel; recentJobs: Job[] } };
@@ -8,6 +9,9 @@ const { data }: Props = $props();
 
 const channel = $derived(data.channel);
 const recentJobs = $derived(data.recentJobs);
+
+let preview = $state<PreviewResponse | null>(null);
+let runNonce = $state(0);
 
 function statusClass(status: Job["status"]): string {
   switch (status) {
@@ -52,7 +56,11 @@ function statusClass(status: Job["status"]): string {
   </div>
 
   <div class="rounded-lg border border-slate-800 bg-slate-900 p-4">
-    <ReplaceLinkForm channelId={channel.id} />
+    <ReplaceLinkForm
+      channelId={channel.id}
+      onPreview={(response) => (preview = response)}
+      runSignal={{ nonce: runNonce }}
+    />
   </div>
 
   <section class="space-y-2">
@@ -126,3 +134,16 @@ function statusClass(status: Job["status"]): string {
     {/if}
   </section>
 </div>
+
+{#if preview}
+  <PreviewModal
+    previews={preview.previews}
+    totalMatches={preview.total_matches}
+    compiledPattern={preview.compiled_pattern}
+    onEdit={() => (preview = null)}
+    onRun={() => {
+      preview = null;
+      runNonce += 1;
+    }}
+  />
+{/if}

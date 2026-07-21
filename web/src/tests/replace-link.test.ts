@@ -23,6 +23,11 @@ vi.mock("../lib/api", () => ({
       this.detail = detail;
     }
   },
+  listPatterns: vi.fn().mockResolvedValue({ patterns: [], total: 0 }),
+  createPattern: vi.fn(),
+  deletePattern: vi.fn(),
+  previewReplace: vi.fn(),
+  replaceLink: vi.fn(),
 }));
 
 vi.mock("$app/navigation", () => ({ goto: mockGoto }));
@@ -32,47 +37,53 @@ vi.mock("$app/state", () => ({
 }));
 
 import ReplaceLinkForm from "../lib/components/ReplaceLinkForm.svelte";
+import { replaceLink } from "../lib/api";
 
 beforeEach(() => {
   mockPost.mockReset();
   mockGoto.mockReset();
+  vi.mocked(replaceLink).mockReset();
 });
 
 describe("ReplaceLinkForm", () => {
   it("disables submit when fields are empty", () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
-    const button = screen.getByRole("button", { name: /Run replace-link/i }) as HTMLButtonElement;
+    const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
 
-  it("disables submit when pattern is empty", async () => {
+  it("disables submit when new link is empty", async () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
-    await fireEvent.input(screen.getByLabelText(/New link/i), {
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
+    });
+    const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
+  it("enables submit when simple-mode fields are filled", async () => {
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
     });
-    const button = screen.getByRole("button", { name: /Run replace-link/i }) as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-  });
-
-  it("shows error on invalid regex pattern", async () => {
-    render(ReplaceLinkForm, { props: { channelId: 1 } });
-    await fireEvent.input(screen.getByLabelText(/Pattern/i), {
-      target: { value: "(" },
-    });
-    expect(await screen.findByText(/Invalid regex/i)).toBeTruthy();
+    const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
   });
 
   it("disables submit when limit is out of range", async () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
-    await fireEvent.input(screen.getByLabelText(/Pattern/i), {
-      target: { value: "https://old\\.example\\.com" },
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/*" },
     });
-    await fireEvent.input(screen.getByLabelText(/New link/i), {
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
     });
 
     const limitInput = screen.getByLabelText(/Limit/i);
-    const button = screen.getByRole("button", { name: /Run replace-link/i }) as HTMLButtonElement;
+    const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
 
     await fireEvent.input(limitInput, { target: { value: "0" } });
     expect(button.disabled).toBe(true);
@@ -87,30 +98,64 @@ describe("ReplaceLinkForm", () => {
     expect(limitInput.value).toBe("100");
   });
 
-  it("submits with pattern, new_link and limit", async () => {
-    mockPost.mockResolvedValue({ job_id: 5 });
+  it("submits with pattern, new_link, mode and keep_tail", async () => {
+    vi.mocked(replaceLink).mockResolvedValue({ job_id: 5 });
     render(ReplaceLinkForm, { props: { channelId: 1 } });
 
-    await fireEvent.input(screen.getByLabelText(/Pattern/i), {
-      target: { value: "https://old\\.example\\.com" },
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
     });
-    await fireEvent.input(screen.getByLabelText(/New link/i), {
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
       target: { value: "https://new.example.com" },
     });
 
-    const form = screen.getByRole("button", { name: /Run replace-link/i }).closest("form");
+    const form = screen.getByRole("button", { name: /Запустить/i }).closest("form");
     if (!form) throw new Error("form not found");
     await fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith("/api/channels/1/replace-link", {
-        pattern: "https://old\\.example\\.com",
+      expect(replaceLink).toHaveBeenCalledWith(1, {
+        pattern: "https://t.me/bot?start=flow-*",
         new_link: "https://new.example.com",
         limit: 100,
+        mode: "simple",
+        keep_tail: false,
       });
     });
     await waitFor(() => {
       expect(mockGoto).toHaveBeenCalledWith("/jobs/5");
     });
+  });
+
+  it("sends keep_tail=true when checkbox is checked", async () => {
+    vi.mocked(replaceLink).mockResolvedValue({ job_id: 7 });
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
+      target: { value: "https://new.example.com" },
+    });
+    const keepTail = screen.getByLabelText(/Сохранить хвост/i);
+    await fireEvent.click(keepTail);
+
+    const form = screen.getByRole("button", { name: /Запустить/i }).closest("form");
+    if (!form) throw new Error("form not found");
+    await fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(replaceLink).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ keep_tail: true, mode: "simple" }),
+      );
+    });
+  });
+
+  it("switches to Advanced mode", async () => {
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+    const advancedTab = screen.getByRole("tab", { name: /Advanced/i });
+    await fireEvent.click(advancedTab);
+    expect(screen.getByLabelText(/Pattern \(raw regex\)/i)).toBeTruthy();
   });
 });
