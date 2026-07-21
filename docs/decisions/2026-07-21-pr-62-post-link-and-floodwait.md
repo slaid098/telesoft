@@ -1,11 +1,11 @@
 ---
-pr: <PR-NUMBER>
+pr: 62
 issue: 61
 status: Accepted
 created: 2026-07-21
 ---
 
-# ADR — PR <PR-NUMBER>: replace binary search with user-provided post link + fix integration tests FloodWait
+# ADR — PR 62: replace binary search with user-provided post link + fix integration tests FloodWait
 
 ## Статус
 

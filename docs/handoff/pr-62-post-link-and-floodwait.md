@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 62
 issue: 61
 branch: fix/telegram/post-link-and-floodwait
 status: ready
 created: 2026-07-21
 ---
 
-# Handoff — PR <PR-NUMBER>: replace binary search with user-provided post link + fix integration tests FloodWait
+# Handoff — PR 62: replace binary search with user-provided post link + fix integration tests FloodWait
 
 ## Что сделано
 
@@ -113,9 +113,9 @@ frontend 36 tests green (+1 новый: `disables submit when post link is empty
 
 ### Шаг 4: Docs — `docs(handoff): set PR number`
 
-- `docs/handoff/pr-<PR-NUMBER>-post-link-and-floodwait.md` (этот файл) —
-  placeholder `<PR-NUMBER>` заменён на реальный PR number после создания PR.
-- `docs/decisions/2026-07-21-pr-<PR-NUMBER>-post-link-and-floodwait.md` —
+- `docs/handoff/pr-62-post-link-and-floodwait.md` (этот файл) —
+  placeholder `<PR-NUMBER>` заменён на реальный PR number (62) после создания PR.
+- `docs/decisions/2026-07-21-pr-62-post-link-and-floodwait.md` —
   ADR с 4 секциями (Статус, Контекст, Решение, Альтернативы).
 
 ## Почему
