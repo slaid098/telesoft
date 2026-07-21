@@ -20,6 +20,7 @@ def test_settings_from_env_defaults(monkeypatch) -> None:
         "JOBS_MAX_CONCURRENCY",
         "MAX_PROBE_ID",
         "TELEGRAM_REQUEST_DELAY",
+        "TELEGRAM_EDIT_DELAY",
     ):
         monkeypatch.delenv(var, raising=False)
 
@@ -39,6 +40,7 @@ def test_settings_from_env_defaults(monkeypatch) -> None:
     assert settings.jobs_max_concurrency == 3
     assert settings.max_probe_id == 10000
     assert settings.telegram_request_delay == 1.0
+    assert settings.telegram_edit_delay == 5.0
 
 
 def test_settings_from_env_custom(monkeypatch) -> None:
@@ -57,6 +59,7 @@ def test_settings_from_env_custom(monkeypatch) -> None:
     monkeypatch.setenv("JOBS_MAX_CONCURRENCY", "5")
     monkeypatch.setenv("MAX_PROBE_ID", "50000")
     monkeypatch.setenv("TELEGRAM_REQUEST_DELAY", "0.5")
+    monkeypatch.setenv("TELEGRAM_EDIT_DELAY", "3.5")
 
     settings = Settings.from_env()
     assert settings.admin_username == "root"
@@ -74,6 +77,7 @@ def test_settings_from_env_custom(monkeypatch) -> None:
     assert settings.jobs_max_concurrency == 5
     assert settings.max_probe_id == 50000
     assert settings.telegram_request_delay == 0.5
+    assert settings.telegram_edit_delay == 3.5
 
 
 def test_settings_is_frozen() -> None:
@@ -93,6 +97,7 @@ def test_settings_is_frozen() -> None:
         jobs_max_concurrency=3,
         max_probe_id=10000,
         telegram_request_delay=1.0,
+        telegram_edit_delay=5.0,
     )
     try:
         settings.host = "x"  # type: ignore[misc]

@@ -18,6 +18,7 @@ import aiosqlite
 import pytest
 from fastapi.testclient import TestClient
 
+from telesoft.core.runner import JobRunner
 from telesoft.db import connection
 from telesoft.db.models import job as job_model
 from telesoft.db.models import log as log_model
@@ -80,6 +81,7 @@ def _drain_until_settled(client: TestClient, job_id: int, rounds: int = 50) -> d
 
 def test_replace_link_success(
     authed_client: TestClient,
+    mock_runner: JobRunner,
     mock_telethon_get_message: AsyncMock,
     mock_telethon_edit_message: AsyncMock,
     mock_telethon_get_last_messages: AsyncMock,
@@ -134,6 +136,7 @@ def test_replace_link_invalid_pattern(
 
 def test_replace_link_limit_validation(
     authed_client: TestClient,
+    mock_runner: JobRunner,
     mock_telethon_get_last_messages: AsyncMock,
 ) -> None:
     channel = _create_channel(authed_client)
@@ -153,6 +156,7 @@ def test_replace_link_limit_validation(
 
 def test_replace_link_default_limit(
     authed_client: TestClient,
+    mock_runner: JobRunner,
     mock_telethon_get_message: AsyncMock,
     mock_telethon_edit_message: AsyncMock,
     mock_telethon_get_last_messages: AsyncMock,

@@ -121,15 +121,15 @@ async def test_find_entity_url(test_entity_url_msg: Any) -> None:
 
 async def test_replace_text_url(test_text_url_msg: Any) -> None:
     """Replacing a URL in raw text edits the post in place."""
-    result = await replace_link_in_post(CHANNEL_ID, test_text_url_msg.id, PATTERN, NEW_LINK)
+    result = await replace_link_in_post(CHANNEL_ID, test_text_url_msg, PATTERN, NEW_LINK)
     assert result.get("edited") is True
     edited = await get_message(CHANNEL_ID, test_text_url_msg.id)
     assert "https://new.example.com/edited" in (edited.text or "")
 
 
 async def test_replace_entity_url(test_entity_url_msg: Any) -> None:
-    """Replacing a URL in an entity edits the entity url via raw API."""
-    result = await replace_link_in_post(CHANNEL_ID, test_entity_url_msg.id, PATTERN, NEW_LINK)
+    """Replacing a URL in an entity edits the entity url in-place via formatting_entities."""
+    result = await replace_link_in_post(CHANNEL_ID, test_entity_url_msg, PATTERN, NEW_LINK)
     assert result.get("edited") is True
     edited = await get_message(CHANNEL_ID, test_entity_url_msg.id)
     entity_urls = [e.url for e in (edited.entities or []) if hasattr(e, "url")]
