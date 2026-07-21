@@ -3,10 +3,12 @@ module: /
 purpose: telesoft — overall structure
 key_files:
   - pyproject.toml — Python project config (uv, hatchling, ruff, mypy, pytest)
-  - docker-compose.yml — 2 containers (api + web) with api healthcheck
+  - docker-compose.yml — 3 containers (api + web + nginx) with api+web healthchecks, single port 8080
   - Dockerfile.api — FastAPI backend image
-  - Dockerfile.web — SvelteKit frontend image (adapter-node)
-  - .env.example — all env vars documented
+  - Dockerfile.nginx — nginx:alpine reverse proxy image
+  - web/Dockerfile.web — SvelteKit frontend image (adapter-node, curl for healthcheck)
+  - nginx.conf — reverse proxy config (api:8000 + web:3000 → port 80)
+  - .env.example — all env vars documented + production deployment notes
   - README.md — project overview, getting started, env vars table, bot setup
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
@@ -51,7 +53,7 @@ Project map — обновляется docs-reviewer на каждый PR. Со�
 - **Backend:** Python 3.12+, uv, hatchling, FastAPI, aiosqlite, Telethon (bot mode), Pydantic v2, itsdangerous, loguru
 - **Frontend:** SvelteKit 2 + Svelte 5 runes + TypeScript + TailwindCSS + Biome + Vitest + Knip + adapter-node
 - **Tooling:** ruff, mypy strict, pytest-asyncio, pre-commit, Docker Compose, GitHub Actions (3 parallel CI jobs)
-- **Runtime:** Docker (api = python:3.13-slim, web = node:22-slim), bridge network `telesoft-network`, api healthcheck on `/health`
+- **Runtime:** Docker (api = python:3.13-slim, web = node:22-slim, nginx = nginx:alpine), bridge network `telesoft-network`, api+web healthchecks, single port 8080 (nginx reverse proxy)
 
 ## Дерево верхнего уровня
 
@@ -68,10 +70,12 @@ telesoft/
 │   └── decisions/     # ADR (Architecture Decision Records)
 ├── .github/           # CI workflows, dependabot, PR template — см. ci.md
 ├── pyproject.toml     # Backend config (uv, ruff, mypy, pytest)
-├── docker-compose.yml # 2 containers — см. docker.md
+├── docker-compose.yml # 3 containers (api + web + nginx) — см. docker.md
 ├── Dockerfile.api     # Backend image — см. docker.md
-├── Dockerfile.web     # Frontend image — см. docker.md
-├── .env.example       # Все env-переменные с placeholder
+├── Dockerfile.nginx   # nginx reverse proxy image — см. docker.md
+├── web/Dockerfile.web # Frontend image — см. docker.md
+├── nginx.conf         # nginx reverse proxy config — см. docker.md
+├── .env.example       # Все env-переменные с placeholder + production notes
 ├── README.md          # Overview, getting started, env vars, bot setup
 ├── .pre-commit-config.yaml  # ruff + mypy hooks — см. ci.md
 ├── .dockerignore
@@ -83,7 +87,7 @@ telesoft/
 
 - [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,ws}}, schemas/{auth,channel,job})
 - [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts + components/, routes/{+layout,+page,login,channels,jobs}, tests)
-- [docker.md](docker.md) — `docker-compose.yml`, `Dockerfile.api`, `Dockerfile.web`, `.env.example`, `.dockerignore`
+- [docker.md](docker.md) — `docker-compose.yml` (3 services: api + web + nginx), `Dockerfile.api`, `Dockerfile.nginx`, `web/Dockerfile.web`, `nginx.conf`, `.env.example`, `.dockerignore`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
 - [tests.md](tests.md) — `tests/` (backend unit tests + integration tests PR#44, 122 unit + 4 integration opt-in), `web/src/tests/` (frontend 26 tests: login 3, channels 9, replace-link 4, jobs 5, layout 3, api 2)
 - [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC + smoke test, НЕ часть backend)
@@ -119,6 +123,7 @@ telesoft/
 - [PR#44 — entity URL handling](../decisions/2026-07-21-pr-44-entity-url-handling.md)
 - [PR#46 — StringSession instead of file session](../decisions/2026-07-21-pr-46-string-session.md)
 - [PR#48 — TELEGRAM_SESSION_STRING env var (supersedes PR#46)](../decisions/2026-07-21-pr-48-session-string.md)
+- [PR#54 — merge compose files for production](../decisions/2026-07-21-pr-54-production-compose.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -136,3 +141,4 @@ telesoft/
 - [PR#44 — entity URL handling](../handoff/pr-44-entity-url-handling.md)
 - [PR#46 — StringSession instead of file session](../handoff/pr-46-string-session.md)
 - [PR#48 — TELEGRAM_SESSION_STRING env var (supersedes PR#46)](../handoff/pr-48-session-string.md)
+- [PR#54 — merge compose files for production](../handoff/pr-54-production-compose.md)

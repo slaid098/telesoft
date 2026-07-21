@@ -1,15 +1,20 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
-    ports:
-      - "8000:8000"
     volumes:
       - ./src:/app/src
       - ./app_data:/app/app_data
     env_file:
       - .env
+    restart: unless-stopped
     networks:
       - telesoft-network
     healthcheck:
@@ -19,29 +24,45 @@ services:
       retries: 5
       start_period: 10s
     logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "3"
+      <<: *default-logging
 
   web:
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: web/Dockerfile.web
       args:
-        VITE_API_BASE: http://localhost:8000
-    ports:
-      - "3000:3000"
+        VITE_API_BASE: ""
     depends_on:
       api:
         condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - telesoft-network
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      <<: *default-logging
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - telesoft-network
     logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "3"
+      <<: *default-logging
 
 networks:
   telesoft-network:
