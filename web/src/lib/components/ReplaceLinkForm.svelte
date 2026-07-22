@@ -25,10 +25,10 @@ let newLink = $state("");
 let postLink = $state("");
 let limit = $state(100);
 let fullReplace = $state(true);
+let linkPreview = $state(false);
 let error = $state<string | null>(null);
 let submitting = $state(false);
 let previewing = $state(false);
-let showPreview = $state(false);
 
 let patterns = $state<PatternListResponse | null>(null);
 let selectedPatternId = $state<string>("");
@@ -98,6 +98,7 @@ async function handlePreview() {
       mode,
       full_replace: fullReplace,
       limit,
+      link_preview: linkPreview,
     });
     onPreview?.(result);
   } catch (err) {
@@ -122,6 +123,7 @@ async function submitJob() {
       limit,
       mode,
       full_replace: fullReplace,
+      link_preview: linkPreview,
     });
     onSubmit?.(result);
     await goto(`/jobs/${result.job_id}`);
@@ -134,7 +136,7 @@ async function submitJob() {
 
 async function handleSubmit(event: Event) {
   event.preventDefault();
-  await submitJob();
+  await handlePreview();
 }
 </script>
 
@@ -305,6 +307,15 @@ async function handleSubmit(event: Event) {
     {/if}
   </fieldset>
 
+  <label class="flex items-center gap-2 text-sm text-slate-300">
+    <input
+      type="checkbox"
+      bind:checked={linkPreview}
+      class="border-slate-700 bg-slate-800"
+    />
+    Включить превью ссылки
+  </label>
+
   <div>
     <label for="rl-limit" class="mb-1 block text-xs font-medium text-slate-300">
       Лимит (последних N постов для сканирования)
@@ -329,30 +340,12 @@ async function handleSubmit(event: Event) {
   {/if}
 
   <div class="flex items-center justify-end gap-2">
-    <label class="flex items-center gap-2 text-sm text-slate-300">
-      <input
-        type="checkbox"
-        bind:checked={showPreview}
-        class="border-slate-700 bg-slate-800"
-      />
-      Показать предпросмотр
-    </label>
-    {#if showPreview}
-      <button
-        type="button"
-        onclick={handlePreview}
-        disabled={!canSubmit}
-        class="rounded-md border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {previewing ? "Предпросмотр…" : "Предпросмотр"}
-      </button>
-    {/if}
     <button
       type="submit"
       disabled={!canSubmit}
       class="rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {submitting ? "Запуск…" : "Запустить"}
+      {previewing ? "Предпросмотр…" : "Запустить"}
     </button>
   </div>
 </form>

@@ -63,14 +63,14 @@ const { previews, totalMatches, compiledPattern, onRun, onEdit }: Props = $props
         class="rounded-md border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
         onclick={onEdit}
       >
-        Изменить pattern
+        Отменить
       </button>
       <button
         type="button"
         class="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
         onclick={onRun}
       >
-        Запустить job
+        Запустить
       </button>
     </div>
   </div>

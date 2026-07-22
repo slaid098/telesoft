@@ -82,6 +82,7 @@ export type ReplaceLinkRequest = {
   limit: number;
   mode: ReplaceMode;
   full_replace: boolean;
+  link_preview: boolean;
 };
 
 export type PreviewRequest = {
@@ -91,6 +92,7 @@ export type PreviewRequest = {
   mode: ReplaceMode;
   full_replace: boolean;
   limit: number;
+  link_preview?: boolean;
 };
 
 export type PreviewItem = {
