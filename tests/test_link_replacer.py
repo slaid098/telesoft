@@ -409,11 +409,11 @@ async def test_replace_link_in_post_preserves_multiple_entities(
 
 def test_adjust_entity_offsets_no_matches_returns_copies() -> None:
     """Pattern does not match → entities returned as fresh copies, unchanged."""
-    bold = MessageEntityBold(offset=5, length=10)
+    bold = MessageEntityBold(offset=3, length=8)
     adjusted = _adjust_entity_offsets([bold], "no match here", r"https://x\.com", "https://y.com")
     assert len(adjusted) == 1
-    assert adjusted[0].offset == 5
-    assert adjusted[0].length == 10
+    assert adjusted[0].offset == 3
+    assert adjusted[0].length == 8
     assert adjusted[0] is not bold  # a copy
 
 
@@ -431,9 +431,11 @@ def test_adjust_entity_offsets_delta_negative() -> None:
     """New link shorter than old → entity.offset shifts left (negative delta)."""
     text = "https://old.example.com is here"
     # match [0, 23], new_link "https://new.io" (14 chars, delta = -9)
-    bold = MessageEntityBold(offset=28, length=6)
+    # entity at offset=25, length=6 (end=31) → shift -9 → offset=16, end=22
+    # new_text = "https://new.io is here" (22 chars) → 16 + 6 = 22 ≤ 22 → valid
+    bold = MessageEntityBold(offset=25, length=6)
     adjusted = _adjust_entity_offsets([bold], text, r"https://old\.example\.com", "https://new.io")
-    assert adjusted[0].offset == 19
+    assert adjusted[0].offset == 16
     assert adjusted[0].length == 6
 
 
@@ -472,3 +474,81 @@ def test_adjust_entity_offsets_does_not_mutate_originals() -> None:
 def test_adjust_entity_offsets_empty_entities() -> None:
     """Empty entity list → empty result."""
     assert _adjust_entity_offsets([], "text", "t", "T") == []
+
+
+def test_adjust_entity_offsets_crossing_boundary_match_starts_inside_entity() -> None:
+    """Match starts inside entity, ends outside → entity length extended by delta."""
+    text = "abcWORDrest"
+    # entity covers "WORD" [3, 7], match "WORDr" at [3, 8] (starts inside, ends outside)
+    bold = MessageEntityBold(offset=3, length=4)
+    # new_link "PHRASE" (6 chars), match "WORDr" (5 chars) → delta = +1
+    adjusted = _adjust_entity_offsets([bold], text, "WORDr", "PHRASE")
+    assert len(adjusted) == 1
+    assert adjusted[0].offset == 3
+    assert adjusted[0].length == 5  # 4 + (6 - 5)
+    # new_text = "abcPHRASEest" (12 chars), entity end = 3 + 5 = 8 ≤ 12 → valid
+    # Original not mutated
+    assert bold.offset == 3
+    assert bold.length == 4
+
+
+def test_adjust_entity_offsets_crossing_boundary_match_starts_outside_entity() -> None:
+    """Match starts outside entity, ends inside → offset shifted to after replacement."""
+    text = "abWORDyy"
+    # entity covers "WORDyy" [2, 8], match "bW" at [1, 3] (starts outside, ends inside)
+    bold = MessageEntityBold(offset=2, length=6)
+    # new_link "ZZZ" (3 chars), match "bW" (2 chars) → delta = +1
+    adjusted = _adjust_entity_offsets([bold], text, "bW", "ZZZ")
+    assert len(adjusted) == 1
+    # new_offset = m_start(1) + len(new_link)(3) = 4
+    assert adjusted[0].offset == 4
+    # e_length = 6 - (4 - 2) = 4
+    assert adjusted[0].length == 4
+    # new_text = "aZZZORDyy" (9 chars), entity end = 4 + 4 = 8 ≤ 9 → valid
+    # Original not mutated
+    assert bold.offset == 2
+    assert bold.length == 6
+
+
+def test_adjust_entity_offsets_drops_invalid_entities() -> None:
+    """Entity with offset+length > len(new_text) after substitution → dropped."""
+    text = "https://old.example.com here"
+    # match [0, 23], new_link "x" (1 char, delta = -22)
+    # entity at offset=28, length=6 (end=34) → shift -22 → offset=6, end=12
+    # new_text = "x here" (6 chars) → 6 + 6 = 12 > 6 → dropped
+    bold = MessageEntityBold(offset=28, length=6)
+    adjusted = _adjust_entity_offsets([bold], text, r"https://old\.example\.com", "x")
+    assert adjusted == []
+    # Original not mutated
+    assert bold.offset == 28
+    assert bold.length == 6
+
+
+async def test_replace_link_in_post_with_bold_crossing_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bold entity crossed by a match (starts inside, ends outside) is preserved + clamped."""
+    text = "bold text LINK_HERE and more"
+    # bold covers "bold text LINK_" [0, 15], match "LINK_HERE" at [10, 19]
+    # (starts inside bold, ends outside) → case 3b: length extended by delta
+    bold = MessageEntityBold(offset=0, length=15)
+    msg = _mk_msg(20, text, [bold])
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    result = await replace_link_in_post(-1001234567890, msg, "LINK_HERE", "https://new.io")
+
+    assert result["success"] is True
+    assert result["match_source"] == "text"
+    edit_mock.assert_awaited_once()
+    entities = edit_mock.await_args.kwargs["formatting_entities"]
+    assert entities is not None
+    assert len(entities) == 1
+    # new_link "https://new.io" (14 chars), match "LINK_HERE" (9 chars) → delta = +5
+    # e_length = 15 + (14 - 9) = 20
+    assert entities[0].offset == 0
+    assert entities[0].length == 20
+    # new_text = "bold text https://new.io and more" (33 chars), end = 0 + 20 = 20 ≤ 33 → valid
+    # Original not mutated
+    assert bold.offset == 0
+    assert bold.length == 15
