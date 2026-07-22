@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 86
 issue: 85
 branch: feat/replace/preview-ux
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: link_preview configurable + preview-confirm-run workflow
+# Handoff — PR 86: link_preview configurable + preview-confirm-run workflow
 
 ## Что сделано
 

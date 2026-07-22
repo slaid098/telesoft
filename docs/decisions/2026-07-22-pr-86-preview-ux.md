@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: link_preview configurable + preview-confirm-run workflow
+# ADR — PR 86: link_preview configurable + preview-confirm-run workflow
 
 ## Статус
 
