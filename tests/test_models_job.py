@@ -93,15 +93,9 @@ async def test_count_jobs_all(mock_db: aiosqlite.Connection) -> None:
 async def test_count_jobs_filter_by_channel(mock_db: aiosqlite.Connection) -> None:
     ch_a = await _make_channel(mock_db, telegram_id=32)
     ch_b = await _make_channel(mock_db, telegram_id=33)
-    await job_model.create_job(
-        mock_db, channel_id=ch_a, pattern="p", new_link="l", created_at=_NOW
-    )
-    await job_model.create_job(
-        mock_db, channel_id=ch_a, pattern="p", new_link="l", created_at=_NOW
-    )
-    await job_model.create_job(
-        mock_db, channel_id=ch_b, pattern="p", new_link="l", created_at=_NOW
-    )
+    await job_model.create_job(mock_db, channel_id=ch_a, pattern="p", new_link="l", created_at=_NOW)
+    await job_model.create_job(mock_db, channel_id=ch_a, pattern="p", new_link="l", created_at=_NOW)
+    await job_model.create_job(mock_db, channel_id=ch_b, pattern="p", new_link="l", created_at=_NOW)
     assert await job_model.count_jobs(mock_db, channel_id=ch_a) == 2
     assert await job_model.count_jobs(mock_db, channel_id=ch_b) == 1
 
