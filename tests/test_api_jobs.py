@@ -278,6 +278,87 @@ async def test_list_jobs_filter_by_channel(
     assert body["jobs"][0]["channel_id"] == int(ch1["id"])
 
 
+async def test_list_jobs_total_includes_all_matching(
+    authed_client: TestClient,
+    db_handle: aiosqlite.Connection,
+) -> None:
+    """``total`` is the total matching count (ignoring LIMIT/OFFSET), not len(jobs)."""
+    channel = _create_channel(authed_client)
+    channel_id = int(channel["id"])
+    for _ in range(15):
+        await job_model.create_job(
+            db_handle,
+            channel_id=channel_id,
+            pattern="x",
+            new_link="y",
+            created_at="2026-07-20T00:00:00Z",
+        )
+    response = authed_client.get("/api/jobs", params={"limit": 10, "offset": 0})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 15
+    assert len(body["jobs"]) == 10
+
+
+async def test_list_jobs_total_with_status_filter(
+    authed_client: TestClient,
+    db_handle: aiosqlite.Connection,
+) -> None:
+    """``total`` honours the status filter (matching count, not all jobs)."""
+    channel = _create_channel(authed_client)
+    channel_id = int(channel["id"])
+    j1 = await job_model.create_job(
+        db_handle,
+        channel_id=channel_id,
+        pattern="x",
+        new_link="y",
+        created_at="2026-07-20T00:00:00Z",
+    )
+    await job_model.create_job(
+        db_handle,
+        channel_id=channel_id,
+        pattern="x",
+        new_link="y",
+        created_at="2026-07-20T00:00:00Z",
+    )
+    await job_model.update_job_status(db_handle, job_id=int(j1["id"]), status="done")
+    response = authed_client.get("/api/jobs", params={"status": "done"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert len(body["jobs"]) == 1
+
+
+async def test_get_job_logs_total_includes_all_matching(
+    authed_client: TestClient,
+    db_handle: aiosqlite.Connection,
+) -> None:
+    """``total`` for logs is the real count (ignoring LIMIT/OFFSET), not len(logs)."""
+    channel = _create_channel(authed_client)
+    job = await job_model.create_job(
+        db_handle,
+        channel_id=int(channel["id"]),
+        pattern="x",
+        new_link="y",
+        created_at="2026-07-20T00:00:00Z",
+    )
+    for i in range(5):
+        await log_model.create_log(
+            db_handle,
+            job_id=int(job["id"]),
+            message_id=100 + i,
+            old_text="hello",
+            success=True,
+            error=None,
+            edited_at="2026-07-20T00:00:00Z",
+        )
+    response = authed_client.get(f"/api/jobs/{job['id']}/logs", params={"limit": 2, "offset": 0})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 5
+    assert len(body["logs"]) == 2
+
+
 async def test_get_job_by_id(
     authed_client: TestClient,
     db_handle: aiosqlite.Connection,
