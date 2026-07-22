@@ -477,19 +477,44 @@ def test_adjust_entity_offsets_empty_entities() -> None:
 
 
 def test_adjust_entity_offsets_crossing_boundary_match_starts_inside_entity() -> None:
-    """Match starts inside entity, ends outside → entity length extended by delta."""
+    """Match starts inside entity, ends outside → entity covers up to end of replacement."""
     text = "abcWORDrest"
     # entity covers "WORD" [3, 7], match "WORDr" at [3, 8] (starts inside, ends outside)
     bold = MessageEntityBold(offset=3, length=4)
-    # new_link "PHRASE" (6 chars), match "WORDr" (5 chars) → delta = +1
+    # new_link "PHRASE" (6 chars), match "WORDr" (5 chars)
+    # case 3b: e_length = (m_start + len(new_link)) - e_offset = (3 + 6) - 3 = 6
     adjusted = _adjust_entity_offsets([bold], text, "WORDr", "PHRASE")
     assert len(adjusted) == 1
     assert adjusted[0].offset == 3
-    assert adjusted[0].length == 5  # 4 + (6 - 5)
-    # new_text = "abcPHRASEest" (12 chars), entity end = 3 + 5 = 8 ≤ 12 → valid
+    assert adjusted[0].length == 6  # entity covers "PHRASE" (replacement)
+    # new_text = "abcPHRASEest" (12 chars), entity end = 3 + 6 = 9 ≤ 12 → valid
     # Original not mutated
     assert bold.offset == 3
     assert bold.length == 4
+
+
+def test_adjust_entity_offsets_case3b_short_replacement_preserves_entity() -> None:
+    """Case 3b with shorter replacement keeps entity with positive length.
+
+    text: "aBOLD_LINK_REST_extra" (22 chars)
+    entity: Bold(offset=1, length=10) covers "BOLD_LINK_" [1, 11]
+    match: "BOLD_LINK_REST" at [1, 15] (14 chars) starts inside, ends outside
+    new_link: "X" (1 char) — shorter than match
+    Old buggy formula (e_length += len(new_link) - (m_end - m_start))
+    produced a negative length → defensive validation dropped the entity.
+    New formula (e_length = (m_start + len(new_link)) - e_offset)
+    yields a positive length → entity survives covering "X".
+    """
+    text = "aBOLD_LINK_REST_extra"
+    bold = MessageEntityBold(offset=1, length=10)
+    adjusted = _adjust_entity_offsets([bold], text, "BOLD_LINK_REST", "X")
+    assert len(adjusted) == 1
+    assert adjusted[0].offset == 1
+    assert adjusted[0].length == 1  # covers "X"
+    # new_text = "aX_extra" (8 chars), entity end = 1 + 1 = 2 ≤ 8 → valid
+    # Original not mutated
+    assert bold.offset == 1
+    assert bold.length == 10
 
 
 def test_adjust_entity_offsets_crossing_boundary_match_starts_outside_entity() -> None:
@@ -497,14 +522,16 @@ def test_adjust_entity_offsets_crossing_boundary_match_starts_outside_entity() -
     text = "abWORDyy"
     # entity covers "WORDyy" [2, 8], match "bW" at [1, 3] (starts outside, ends inside)
     bold = MessageEntityBold(offset=2, length=6)
-    # new_link "ZZZ" (3 chars), match "bW" (2 chars) → delta = +1
+    # new_link "ZZZ" (3 chars), match "bW" (2 chars)
+    # case 3a: new_offset = m_start + len(new_link) = 1 + 3 = 4
+    #          e_length = e_end - m_end = 8 - 3 = 5
     adjusted = _adjust_entity_offsets([bold], text, "bW", "ZZZ")
     assert len(adjusted) == 1
     # new_offset = m_start(1) + len(new_link)(3) = 4
     assert adjusted[0].offset == 4
-    # e_length = 6 - (4 - 2) = 4
-    assert adjusted[0].length == 4
-    # new_text = "aZZZORDyy" (9 chars), entity end = 4 + 4 = 8 ≤ 9 → valid
+    # e_length = e_end(8) - m_end(3) = 5 (surviving tail "ORDyy")
+    assert adjusted[0].length == 5
+    # new_text = "aZZZORDyy" (9 chars), entity end = 4 + 5 = 9 ≤ 9 → valid
     # Original not mutated
     assert bold.offset == 2
     assert bold.length == 6
@@ -530,7 +557,7 @@ async def test_replace_link_in_post_with_bold_crossing_boundary(
     """Bold entity crossed by a match (starts inside, ends outside) is preserved + clamped."""
     text = "bold text LINK_HERE and more"
     # bold covers "bold text LINK_" [0, 15], match "LINK_HERE" at [10, 19]
-    # (starts inside bold, ends outside) → case 3b: length extended by delta
+    # (starts inside bold, ends outside) → case 3b
     bold = MessageEntityBold(offset=0, length=15)
     msg = _mk_msg(20, text, [bold])
     edit_mock = AsyncMock(return_value=None)
@@ -544,11 +571,11 @@ async def test_replace_link_in_post_with_bold_crossing_boundary(
     entities = edit_mock.await_args.kwargs["formatting_entities"]
     assert entities is not None
     assert len(entities) == 1
-    # new_link "https://new.io" (14 chars), match "LINK_HERE" (9 chars) → delta = +5
-    # e_length = 15 + (14 - 9) = 20
+    # new_link "https://new.io" (14 chars), match "LINK_HERE" (9 chars)
+    # case 3b: e_length = (m_start + len(new_link)) - e_offset = (10 + 14) - 0 = 24
     assert entities[0].offset == 0
-    assert entities[0].length == 20
-    # new_text = "bold text https://new.io and more" (33 chars), end = 0 + 20 = 20 ≤ 33 → valid
+    assert entities[0].length == 24
+    # new_text = "bold text https://new.io and more" (33 chars), end = 0 + 24 = 24 ≤ 33 → valid
     # Original not mutated
     assert bold.offset == 0
     assert bold.length == 15

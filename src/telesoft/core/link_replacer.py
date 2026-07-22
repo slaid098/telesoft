@@ -71,10 +71,16 @@ def _adjust_entity_offsets(
       cumulative delta
     - matches strictly inside the entity → grow/shrink ``entity.length`` by
       the per-match delta
-    - match starts outside, ends inside entity → shift ``entity.offset`` to
-      after the replacement and shrink ``entity.length`` accordingly
-    - match starts inside, ends outside entity → extend/shrink
-      ``entity.length`` by the per-match delta
+    - match starts outside, ends inside entity (case 3a) → shift
+      ``entity.offset`` to ``m_start + len(new_link)`` (start of the
+      replacement in the post-substitution text) and set ``entity.length``
+      to ``e_end - m_end`` (the surviving tail of the entity, from the end
+      of the match to the original end of the entity)
+    - match starts inside, ends outside entity (case 3b) → set
+      ``entity.length`` to ``(m_start + len(new_link)) - e_offset`` (the
+      entity now covers everything from its original start up to the end of
+      the replacement). A shorter replacement yields a shorter but still
+      positive length, preserving the entity instead of dropping it.
 
     After all matches are processed, each entity is validated against the
     post-substitution text length: entities with negative offset, non-positive
@@ -101,10 +107,10 @@ def _adjust_entity_offsets(
                 e_length += len(new_link) - (m_end - m_start)
             elif m_start < e_offset and m_end > e_offset and m_end <= e_end:
                 new_offset = m_start + len(new_link)
-                e_length -= new_offset - e_offset
+                e_length = e_end - m_end
                 e_offset = new_offset
             elif m_start >= e_offset and m_start < e_end and m_end > e_end:
-                e_length += len(new_link) - (m_end - m_start)
+                e_length = (m_start + len(new_link)) - e_offset
         new_entity.offset = e_offset + shift
         new_entity.length = e_length
         if (

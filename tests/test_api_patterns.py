@@ -189,7 +189,7 @@ def test_preview_replace_full_replace_true_appends_tail(
     authed_client: TestClient,
     mock_telethon_get_last_messages: Any,
 ) -> None:
-    """full_replace=True (default) appends .* to the compiled pattern."""
+    """full_replace=True (default) appends \\S* to the compiled pattern."""
     channel = _create_channel(authed_client)
     mock_telethon_get_last_messages.return_value = [
         MockMessage(id=1, text="see https://old.example.com/a", chat_id=-1001234567890),
@@ -208,7 +208,7 @@ def test_preview_replace_full_replace_true_appends_tail(
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["total_matches"] == 1
-    assert body["compiled_pattern"] == r"https://old\.example\.com.*"
+    assert body["compiled_pattern"] == r"https://old\.example\.com\S*"
 
 
 def test_preview_replace_simple_mode_compiles_wildcard(
@@ -382,7 +382,7 @@ def test_replace_link_full_replace_true_appends_tail(
     mock_runner: Any,
     mock_telethon_get_last_messages: Any,
 ) -> None:
-    """full_replace=True (default) appends .* to the compiled pattern stored in DB."""
+    """full_replace=True (default) appends \\S* to the compiled pattern stored in DB."""
     channel = _create_channel(authed_client)
     mock_telethon_get_last_messages.return_value = [
         MockMessage(id=1, text="https://old.example.com/path", chat_id=-1001234567890),
@@ -401,7 +401,7 @@ def test_replace_link_full_replace_true_appends_tail(
     assert response.status_code == 201, response.text
     jobs = authed_client.get("/api/jobs").json()
     assert jobs["total"] == 1
-    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com.*"
+    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com\S*"
 
 
 def test_replace_link_partial_replace_keeps_pattern(
@@ -472,5 +472,5 @@ def test_replace_link_backward_compat_default_mode(
     assert response.status_code == 201, response.text
     jobs = authed_client.get("/api/jobs").json()
     assert jobs["total"] == 1
-    # default full_replace=True appends .* to the stored pattern
-    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com.*"
+    # default full_replace=True appends \S* to the stored pattern
+    assert jobs["jobs"][0]["pattern"] == r"https://old\.example\.com\S*"

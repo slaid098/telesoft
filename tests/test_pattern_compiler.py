@@ -52,9 +52,9 @@ def test_compile_simple_produces_compilable_regex() -> None:
 
 
 def test_compile_pattern_simple_default_full_replace_appends_tail() -> None:
-    """full_replace=True (default) appends .* to simple-mode patterns without a tail."""
+    """full_replace=True (default) appends \\S* to simple-mode patterns without a tail."""
     compiled = compile_pattern("https://t.me/bot?start=flow-123", "simple", True)
-    assert compiled.endswith(".*")
+    assert compiled.endswith(r"\S*")
     assert re.search(compiled, "https://t.me/bot?start=flow-123-s-456")
 
 
@@ -79,9 +79,9 @@ def test_compile_pattern_simple_with_trailing_s_plus_not_appended() -> None:
 
 
 def test_compile_pattern_advanced_passthrough_default_full_replace() -> None:
-    """advanced mode with full_replace=True appends .* to a bare pattern."""
+    """advanced mode with full_replace=True appends \\S* to a bare pattern."""
     compiled = compile_pattern(r"https://t\.me/bot\?start=flow-\d+", "advanced", True)
-    assert compiled == r"https://t\.me/bot\?start=flow-\d+.*"
+    assert compiled == r"https://t\.me/bot\?start=flow-\d+\S*"
 
 
 def test_compile_pattern_advanced_without_full_replace_passthrough() -> None:
@@ -91,9 +91,9 @@ def test_compile_pattern_advanced_without_full_replace_passthrough() -> None:
 
 
 def test_compile_pattern_library_passthrough_with_full_replace() -> None:
-    """library mode behaves like advanced — appends .* with full_replace=True."""
+    """library mode behaves like advanced — appends \\S* with full_replace=True."""
     compiled = compile_pattern(r"https://t\.me/bot\?start=flow-\d+", "library", True)
-    assert compiled == r"https://t\.me/bot\?start=flow-\d+.*"
+    assert compiled == r"https://t\.me/bot\?start=flow-\d+\S*"
 
 
 def test_compile_pattern_library_without_full_replace() -> None:
@@ -105,7 +105,7 @@ def test_compile_pattern_library_without_full_replace() -> None:
 def test_compile_pattern_default_full_replace_is_true() -> None:
     """The default value of full_replace is True (backward-compat with issue #63)."""
     compiled = compile_pattern(r"https://t\.me/bot\?start=flow-\d+", "advanced")
-    assert compiled.endswith(".*")
+    assert compiled.endswith(r"\S*")
 
 
 def test_compile_pattern_unknown_mode_raises() -> None:
