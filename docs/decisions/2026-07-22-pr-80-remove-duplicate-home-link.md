@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: remove duplicate Home link from top navigation
+# ADR — PR 80: remove duplicate Home link from top navigation
 
 ## Статус
 

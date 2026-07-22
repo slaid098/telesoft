@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 80
 issue: 79
 branch: fix/web/remove-duplicate-home-link
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: remove duplicate Home link from top navigation
+# Handoff — PR 80: remove duplicate Home link from top navigation
 
 ## Что сделано
 
