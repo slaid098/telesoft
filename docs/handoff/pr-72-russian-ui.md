@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 72
 issue: 71
 branch: feat/web/russian-ui
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: translate UI to Russian
+# Handoff — PR 72: translate UI to Russian
 
 ## Что сделано
 
