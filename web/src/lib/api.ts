@@ -28,7 +28,7 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     return err.message || fallback;
   }
-  return "Network error";
+  return "Ошибка сети";
 }
 
 type QueryValue = string | number | boolean | undefined | null;
@@ -77,7 +77,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (current !== "/login") {
       await goto(`/login?redirectTo=${encodeURIComponent(current)}`);
     }
-    throw new ApiError(401, null, "Unauthorized");
+    throw new ApiError(401, null, "Не авторизован");
   }
 
   const text = await response.text();

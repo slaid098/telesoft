@@ -25,7 +25,7 @@ async function load() {
     const resp: PatternListResponse = await listPatterns();
     patterns = resp.patterns;
   } catch (err) {
-    error = apiErrorMessage(err, "Failed to load patterns");
+    error = apiErrorMessage(err, "Не удалось загрузить паттерны");
   } finally {
     loading = false;
   }
@@ -51,7 +51,7 @@ async function handleCreate(event: Event) {
     await load();
     onPatternsChanged?.();
   } catch (err) {
-    error = apiErrorMessage(err, "Failed to create pattern");
+    error = apiErrorMessage(err, "Не удалось создать паттерн");
   } finally {
     creating = false;
   }
@@ -65,7 +65,7 @@ async function handleDelete(id: number) {
     await load();
     onPatternsChanged?.();
   } catch (err) {
-    error = apiErrorMessage(err, "Failed to delete pattern");
+    error = apiErrorMessage(err, "Не удалось удалить паттерн");
   }
 }
 
@@ -116,7 +116,7 @@ void load();
                       class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] uppercase text-slate-400"
                       title="встроенный"
                     >
-                      built-in
+                      встроенный
                     </span>
                   {/if}
                 </div>
