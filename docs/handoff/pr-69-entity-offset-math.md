@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 70
 issue: 69
 branch: fix/replace/entity-offset-math
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: correct entity offset math + non-greedy wildcard
+# Handoff — PR 70: correct entity offset math + non-greedy wildcard
 
 ## Что сделано
 
