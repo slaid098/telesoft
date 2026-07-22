@@ -45,7 +45,7 @@ async function refresh() {
     const resp = await api.get<JobListResponse>("/api/jobs", { limit: 50 });
     localRefresh = resp.jobs;
   } catch (err) {
-    error = err instanceof Error ? err.message : "Refresh failed";
+    error = err instanceof Error ? err.message : "Не удалось обновить";
   }
 }
 
@@ -72,15 +72,15 @@ $effect(() => {
 
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-2xl font-semibold text-white">Jobs</h1>
+    <h1 class="text-2xl font-semibold text-white">Задачи</h1>
     <div class="flex items-center gap-2">
-      <label for="job-status-filter" class="text-xs text-slate-400">Status</label>
+      <label for="job-status-filter" class="text-xs text-slate-400">Статус</label>
       <select
         id="job-status-filter"
         bind:value={statusFilter}
         class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       >
-        <option value="all">all</option>
+        <option value="all">все</option>
         {#each JOB_STATUSES as status (status)}
           <option value={status}>{JOB_STATUS_LABELS[status]}</option>
         {/each}
@@ -95,7 +95,7 @@ $effect(() => {
   {/if}
 
   {#if hasRunning}
-    <p class="text-xs text-slate-400">Auto-refresh every 5 seconds while jobs are running.</p>
+    <p class="text-xs text-slate-400">Авто-обновление каждые 5 секунд, пока задачи выполняются.</p>
   {/if}
 
   <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
@@ -103,11 +103,11 @@ $effect(() => {
       <thead class="text-xs text-slate-400">
         <tr>
           <th class="px-3 py-2 text-left font-medium">ID</th>
-          <th class="px-3 py-2 text-left font-medium">Channel</th>
-          <th class="px-3 py-2 text-left font-medium">Pattern</th>
-          <th class="px-3 py-2 text-left font-medium">Status</th>
-          <th class="px-3 py-2 text-left font-medium">Progress</th>
-          <th class="px-3 py-2 text-left font-medium">Created</th>
+          <th class="px-3 py-2 text-left font-medium">Канал</th>
+          <th class="px-3 py-2 text-left font-medium">Паттерн</th>
+          <th class="px-3 py-2 text-left font-medium">Статус</th>
+          <th class="px-3 py-2 text-left font-medium">Прогресс</th>
+          <th class="px-3 py-2 text-left font-medium">Создан</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800">
@@ -134,7 +134,7 @@ $effect(() => {
           </tr>
         {:else}
           <tr>
-            <td colspan="6" class="px-3 py-8 text-center text-slate-400">No jobs</td>
+            <td colspan="6" class="px-3 py-8 text-center text-slate-400">Нет задач</td>
           </tr>
         {/each}
       </tbody>
@@ -161,26 +161,26 @@ $effect(() => {
         </div>
         <dl class="mt-2 space-y-1 text-xs text-slate-300">
           <div class="flex justify-between gap-2">
-            <dt class="text-slate-400">Channel</dt>
+            <dt class="text-slate-400">Канал</dt>
             <dd>{channelTitle(job.channel_id)}</dd>
           </div>
           <div class="flex justify-between gap-2">
-            <dt class="text-slate-400">Pattern</dt>
+            <dt class="text-slate-400">Паттерн</dt>
             <dd class="truncate" title={job.pattern}>{job.pattern}</dd>
           </div>
           <div class="flex justify-between gap-2">
-            <dt class="text-slate-400">Progress</dt>
+            <dt class="text-slate-400">Прогресс</dt>
             <dd>{job.edited}/{job.total}</dd>
           </div>
           <div class="flex justify-between gap-2">
-            <dt class="text-slate-400">Created</dt>
+            <dt class="text-slate-400">Создан</dt>
             <dd>{job.created_at}</dd>
           </div>
         </dl>
       </div>
     {:else}
       <div class="rounded-lg border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400">
-        No jobs
+        Нет задач
       </div>
     {/each}
   </div>

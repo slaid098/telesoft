@@ -27,7 +27,7 @@ const canSubmit = $derived(trimmedTitle.length > 0 && hasTelegramId && !saving);
 async function handleSubmit(event: Event) {
   event.preventDefault();
   if (!canSubmit) {
-    error = "Enter a valid telegram_id and title";
+    error = "Введите корректный telegram_id и название";
     return;
   }
   error = null;
@@ -42,9 +42,9 @@ async function handleSubmit(event: Event) {
     onSaved?.(saved);
   } catch (err) {
     if (err instanceof ApiError) {
-      error = err.message || "Save failed";
+      error = err.message || "Не удалось сохранить";
     } else {
-      error = "Network error";
+      error = "Ошибка сети";
     }
   } finally {
     saving = false;
@@ -53,7 +53,7 @@ async function handleSubmit(event: Event) {
 </script>
 
 <form class="space-y-4" onsubmit={handleSubmit}>
-  <h2 class="text-lg font-semibold text-white">New channel</h2>
+  <h2 class="text-lg font-semibold text-white">Новый канал</h2>
 
   <div>
     <label for="ch-telegram-id" class="mb-1 block text-xs font-medium text-slate-300">
@@ -73,7 +73,7 @@ async function handleSubmit(event: Event) {
   </div>
 
   <div>
-    <label for="ch-title" class="mb-1 block text-xs font-medium text-slate-300">Title</label>
+    <label for="ch-title" class="mb-1 block text-xs font-medium text-slate-300">Название</label>
     <input
       id="ch-title"
       type="text"
@@ -86,7 +86,7 @@ async function handleSubmit(event: Event) {
 
   <div>
     <label for="ch-username" class="mb-1 block text-xs font-medium text-slate-300">
-      Username (optional)
+      Username (необязательно)
     </label>
     <input
       id="ch-username"
@@ -95,7 +95,7 @@ async function handleSubmit(event: Event) {
       placeholder="mychannel"
       class="w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
     />
-    <p class="mt-1 text-xs text-slate-400">Public channel @username without @</p>
+    <p class="mt-1 text-xs text-slate-400">Username канала без @</p>
   </div>
 
   {#if error}
@@ -111,14 +111,14 @@ async function handleSubmit(event: Event) {
       disabled={saving}
       class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-60"
     >
-      Cancel
+      Отмена
     </button>
     <button
       type="submit"
       disabled={!canSubmit}
       class="rounded-md bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {saving ? "Saving…" : "Save"}
+      {saving ? "Сохранение…" : "Сохранить"}
     </button>
   </div>
 </form>
