@@ -64,7 +64,7 @@ async def test_edit_message_success(
 ) -> None:
     result = await edit_message(chat_id=-1001234567890, message_id=123, text="new text")
     mock_telethon_client.edit_message.assert_awaited_once_with(
-        -1001234567890, 123, text="new text", formatting_entities=None
+        -1001234567890, 123, text="new text", formatting_entities=None, link_preview=False
     )
     assert result is mock_message
 
@@ -121,6 +121,26 @@ async def test_edit_message_flood_wait_max_retries_exceeded(
     assert len(flood_sleeps) == 2
 
 
+async def test_edit_message_link_preview_false_passes_to_telethon(
+    mock_telethon_client: AsyncMock, mock_message: MockMessage
+) -> None:
+    """edit_message(link_preview=False) → client.edit_message(link_preview=False)."""
+    await edit_message(chat_id=-1001234567890, message_id=123, text="new text", link_preview=False)
+    mock_telethon_client.edit_message.assert_awaited_once_with(
+        -1001234567890, 123, text="new text", formatting_entities=None, link_preview=False
+    )
+
+
+async def test_edit_message_link_preview_true_passes_to_telethon(
+    mock_telethon_client: AsyncMock, mock_message: MockMessage
+) -> None:
+    """edit_message(link_preview=True) → client.edit_message(link_preview=True)."""
+    await edit_message(chat_id=-1001234567890, message_id=123, text="new text", link_preview=True)
+    mock_telethon_client.edit_message.assert_awaited_once_with(
+        -1001234567890, 123, text="new text", formatting_entities=None, link_preview=True
+    )
+
+
 async def test_edit_message_entities_uses_high_level_api(
     mock_telethon_client: AsyncMock,
 ) -> None:
@@ -138,9 +158,28 @@ async def test_edit_message_entities_uses_high_level_api(
 
     assert result is result_mock
     mock_telethon_client.edit_message.assert_awaited_once_with(
-        -1001234567890, 42, text="hello", formatting_entities=entities
+        -1001234567890, 42, text="hello", formatting_entities=entities, link_preview=False
     )
     mock_telethon_client.assert_not_awaited()
+
+
+async def test_edit_message_entities_link_preview_true_passes_to_telethon(
+    mock_telethon_client: AsyncMock,
+) -> None:
+    """edit_message_entities(link_preview=True) → client.edit_message(link_preview=True)."""
+    message = MagicMock()
+    message.id = 42
+    message.message = "hello"
+    entities = [MagicMock()]
+    mock_telethon_client.edit_message.return_value = MagicMock()
+
+    await edit_message_entities(
+        chat_id=-1001234567890, message=message, entities=entities, link_preview=True
+    )
+
+    mock_telethon_client.edit_message.assert_awaited_once_with(
+        -1001234567890, 42, text="hello", formatting_entities=entities, link_preview=True
+    )
 
 
 async def test_edit_message_entities_retries_on_flood_wait(

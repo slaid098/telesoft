@@ -144,7 +144,7 @@ def _adjust_entity_offsets(
 
 
 async def replace_link_in_post(
-    chat_id: int, message: Any, pattern: str, new_link: str
+    chat_id: int, message: Any, pattern: str, new_link: str, link_preview: bool = False
 ) -> dict[str, Any]:
     """Regex-replace links in an already-fetched *message* and edit it via Telethon.
 
@@ -155,6 +155,10 @@ async def replace_link_in_post(
       matching entities have their ``url`` mutated in-place to *new_link* and
       the post is edited via ``edit_message_entities`` (which uses Telethon's
       high-level ``client.edit_message(formatting_entities=...)``).
+
+    *link_preview* is forwarded to the Telethon edit call so the caller
+    controls whether Telegram renders a link preview card. Telegram's
+    default is ``True``; the backend default (``False``) suppresses it.
 
     Returns a result dict describing the outcome:
     - ``{"success": True, "skipped": True, ...}`` when zero replacements were
@@ -202,6 +206,7 @@ async def replace_link_in_post(
                 message_id,
                 new_text,
                 formatting_entities=adjusted_entities,
+                link_preview=link_preview,
             )
             return {
                 "success": True,
@@ -219,7 +224,9 @@ async def replace_link_in_post(
             message_id,
             entity_count,
         )
-        await telegram_module.edit_message_entities(chat_id, message, entities)
+        await telegram_module.edit_message_entities(
+            chat_id, message, entities, link_preview=link_preview
+        )
     except Exception as exc:
         return {
             "success": False,
@@ -268,12 +275,13 @@ async def find_posts_with_pattern(messages: list[Any], pattern: str) -> list[Any
     return matching
 
 
-async def replace_link_in_posts(
+async def replace_link_in_posts(  # noqa: PLR0913
     chat_id: int,
     messages: list[Any],
     pattern: str,
     new_link: str,
     on_progress: Callable[[int, int, int], Awaitable[None]] | None = None,
+    link_preview: bool = False,
 ) -> dict[str, int]:
     """Edit every message in *messages* via :func:`replace_link_in_post`.
 
@@ -281,13 +289,18 @@ async def replace_link_in_posts(
     *on_progress* is supplied it is awaited after each message with the current
     ``(edited, failed, total)`` counters — used by the runner to push progress
     events without coupling to the orchestrator's loop.
+
+    *link_preview* is forwarded to each :func:`replace_link_in_post` call so
+    the caller controls whether Telegram renders a link preview card.
     """
     total = len(messages)
     edited = 0
     failed = 0
     skipped = 0
     for message in messages:
-        result = await replace_link_in_post(chat_id, message, pattern, new_link)
+        result = await replace_link_in_post(
+            chat_id, message, pattern, new_link, link_preview=link_preview
+        )
         if result.get("success"):
             if result.get("edited"):
                 edited += 1

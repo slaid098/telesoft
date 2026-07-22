@@ -377,6 +377,83 @@ async def test_replace_link_in_post_no_entities_passes_none(
     assert edit_mock.await_args.kwargs["formatting_entities"] is None
 
 
+async def test_replace_link_in_post_link_preview_false_passes_to_edit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """replace_link_in_post(link_preview=False) → edit_message(link_preview=False)."""
+    msg = _mk_msg(40, "visit https://old.example.com now")
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    await replace_link_in_post(
+        -1001234567890,
+        msg,
+        r"https://old\.example\.com",
+        "https://new.example.com",
+        link_preview=False,
+    )
+
+    edit_mock.assert_awaited_once()
+    assert edit_mock.await_args.kwargs["link_preview"] is False
+
+
+async def test_replace_link_in_post_link_preview_true_passes_to_edit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """replace_link_in_post(link_preview=True) → edit_message(link_preview=True)."""
+    msg = _mk_msg(41, "visit https://old.example.com now")
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    await replace_link_in_post(
+        -1001234567890,
+        msg,
+        r"https://old\.example\.com",
+        "https://new.example.com",
+        link_preview=True,
+    )
+
+    edit_mock.assert_awaited_once()
+    assert edit_mock.await_args.kwargs["link_preview"] is True
+
+
+async def test_replace_link_in_post_link_preview_true_entity_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Entity path forwards link_preview=True to edit_message_entities."""
+    entity = MessageEntityTextUrl(offset=0, length=4, url="https://old.example.com/path")
+    msg = _mk_msg(42, "click here", [entity])
+    edit_entities_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message_entities", edit_entities_mock)
+
+    await replace_link_in_post(
+        -1001234567890,
+        msg,
+        r"https://old\.example\.com/path",
+        "https://new.example.com/edited",
+        link_preview=True,
+    )
+
+    edit_entities_mock.assert_awaited_once()
+    assert edit_entities_mock.await_args.kwargs["link_preview"] is True
+
+
+async def test_replace_link_in_post_defaults_to_link_preview_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without link_preview kwarg, edit_message receives link_preview=False (default)."""
+    msg = _mk_msg(43, "visit https://old.example.com now")
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    await replace_link_in_post(
+        -1001234567890, msg, r"https://old\.example\.com", "https://new.example.com"
+    )
+
+    edit_mock.assert_awaited_once()
+    assert edit_mock.await_args.kwargs["link_preview"] is False
+
+
 async def test_replace_link_in_post_preserves_multiple_entities(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
