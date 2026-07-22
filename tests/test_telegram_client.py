@@ -129,7 +129,7 @@ async def test_edit_message_entities_uses_high_level_api(
     """
     message = MagicMock()
     message.id = 42
-    message.text = "hello"
+    message.message = "hello"
     entities = [MagicMock()]
     result_mock = MagicMock()
     mock_telethon_client.edit_message.return_value = result_mock
@@ -153,7 +153,7 @@ async def test_edit_message_entities_retries_on_flood_wait(
     monkeypatch.setattr(telegram_module.asyncio, "sleep", sleep_mock)
     message = MagicMock()
     message.id = 42
-    message.text = "hello"
+    message.message = "hello"
     entities = [MagicMock()]
     attempts = 0
 
@@ -186,7 +186,7 @@ async def test_edit_message_entities_flood_wait_max_retries_exceeded(
     )
     message = MagicMock()
     message.id = 42
-    message.text = "hello"
+    message.message = "hello"
     entities = [MagicMock()]
 
     with pytest.raises(FloodWaitError):

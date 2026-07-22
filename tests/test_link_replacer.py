@@ -103,14 +103,14 @@ async def test_replace_link_in_post_edit_fails(monkeypatch: pytest.MonkeyPatch) 
     )
     assert result["success"] is False
     assert "boom" in str(result["error"])
-    assert result["old_text"] == msg.text
+    assert result["old_text"] == msg.message
     edit_mock.assert_awaited_once()
 
 
 async def test_replace_link_in_post_empty_text(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Media-only post (text=None) → skipped=True, edit_message NOT called."""
+    """Media-only post (message=None) → skipped=True, edit_message NOT called."""
     msg = _mk_msg(8, "")
-    msg.text = None
+    msg.message = None
     edit_mock = AsyncMock()
     monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
 
@@ -220,7 +220,7 @@ async def test_find_posts_with_pattern_filters_matching() -> None:
     other = MockMessage(id=2, text="nothing here", chat_id=-100)
     empty = MockMessage(id=3, text="", chat_id=-100)
     none_text = MockMessage(id=4, text="", chat_id=-100)
-    none_text.text = None
+    none_text.message = None
 
     result = await find_posts_with_pattern([matching, other, empty, none_text], pattern)
 
@@ -255,7 +255,7 @@ async def test_find_posts_with_pattern_skips_when_text_and_entities_empty() -> N
     pattern = r"https://old\.example\.com"
     no_text_no_entities = MockMessage(id=1, text="", chat_id=-100, entities=None)
     none_text = MockMessage(id=2, text="not empty", chat_id=-100)
-    none_text.text = None
+    none_text.message = None
     none_text.entities = []
 
     result = await find_posts_with_pattern([no_text_no_entities, none_text], pattern)
@@ -552,3 +552,90 @@ async def test_replace_link_in_post_with_bold_crossing_boundary(
     # Original not mutated
     assert bold.offset == 0
     assert bold.length == 15
+
+
+async def test_replace_link_in_post_preserves_bold_no_markdown_leakage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bold post: raw text (message.message) used, NOT markdown (message.text).
+
+    Simulates a real Telegram post where ``message.text`` carries markdown
+    markers (``**``) but ``message.message`` is the raw plain text. The
+    replacement must operate on ``message.message`` so no literal ``**`` leaks
+    into the edited post.
+    """
+    # Raw text (what Telegram stores, entities offsets relative to this)
+    raw_text = "bold text tg://resolve?domain=testbot&start=flow-123"
+    # Markdown text (what message.text returns for display)
+    markdown_text = "**bold text** tg://resolve?domain=testbot&start=flow-123"
+    # Bold entity covers "bold text" [0, 9] in raw text
+    bold = MessageEntityBold(offset=0, length=9)
+    msg = MockMessage(
+        id=30,
+        text=markdown_text,
+        chat_id=-1001234567890,
+        message=raw_text,
+        entities=[bold],
+    )
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, msg, r"tg://\S+", "https://new.example.com/bot-link"
+    )
+
+    assert result["success"] is True
+    assert result["match_source"] == "text"
+    edit_mock.assert_awaited_once()
+    sent_text = edit_mock.await_args.args[2]
+    # CRITICAL: no markdown markers in the edited text
+    assert "**" not in sent_text
+    assert "__" not in sent_text
+    # Link replaced
+    assert "https://new.example.com/bot-link" in sent_text
+    assert "tg://resolve" not in sent_text
+    # Bold entity preserved (offset relative to raw text, not markdown)
+    entities = edit_mock.await_args.kwargs["formatting_entities"]
+    assert entities is not None
+    assert len(entities) == 1
+    assert entities[0].offset == 0
+    assert entities[0].length == 9
+    assert entities[0].offset + entities[0].length <= len(sent_text)
+
+
+async def test_replace_link_in_post_with_italic_no_markdown_leakage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Italic post: raw text used, no ``__``/``_`` markers leak into result."""
+    raw_text = "italic text https://t.me/example?start=app_789"
+    markdown_text = "_italic text_ https://t.me/example?start=app_789"
+    italic = MessageEntityItalic(offset=0, length=11)
+    msg = MockMessage(
+        id=31,
+        text=markdown_text,
+        chat_id=-1001234567890,
+        message=raw_text,
+        entities=[italic],
+    )
+    edit_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(telegram_module, "edit_message", edit_mock)
+
+    result = await replace_link_in_post(
+        -1001234567890, msg, r"https://t\.me/\S+", "https://new.example.com/tme"
+    )
+
+    assert result["success"] is True
+    edit_mock.assert_awaited_once()
+    sent_text = edit_mock.await_args.args[2]
+    # CRITICAL: no markdown markers in the edited text
+    assert "__" not in sent_text
+    assert "**" not in sent_text
+    assert "_" not in sent_text
+    # Link replaced
+    assert "https://new.example.com/tme" in sent_text
+    entities = edit_mock.await_args.kwargs["formatting_entities"]
+    assert entities is not None
+    assert len(entities) == 1
+    assert entities[0].offset == 0
+    assert entities[0].length == 11
+    assert entities[0].offset + entities[0].length <= len(sent_text)

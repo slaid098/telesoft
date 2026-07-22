@@ -131,7 +131,15 @@ async def create_job(mock_db: aiosqlite.Connection, create_channel: ChannelFacto
 
 @dataclass
 class MockMessage:
-    """Minimal Message-like object for testing telegram client wrappers."""
+    """Minimal Message-like object for testing telegram client wrappers.
+
+    In Telethon, ``message.message`` is the raw plain text (without markdown
+    markers) and ``message.text`` is the markdown-rendered text (with ``**`` /
+    ``__``). Entity offsets are relative to ``message.message``. Tests default
+    ``message`` to the same value as ``text`` for plain-text posts (no
+    formatting); tests that need to simulate formatting set ``message`` and
+    ``text`` to different values.
+    """
 
     id: int
     text: str
@@ -139,6 +147,10 @@ class MockMessage:
     message: str = ""
     date: object = None
     entities: list[object] | None = None
+
+    def __post_init__(self) -> None:
+        if not self.message:
+            self.message = self.text
 
 
 @pytest.fixture

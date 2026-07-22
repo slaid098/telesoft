@@ -151,7 +151,7 @@ async def edit_message_entities(chat_id: int, message: Any, entities: list[Any])
             return await client.edit_message(
                 chat_id,
                 message.id,
-                text=message.text or "",
+                text=message.message or "",
                 formatting_entities=entities,
             )
         except FloodWaitError as exc:
