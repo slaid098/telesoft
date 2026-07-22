@@ -6,6 +6,7 @@ import re
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from telethon.helpers import add_surrogate, del_surrogate
 from telethon.tl.types import MessageEntityBold, MessageEntityItalic, MessageEntityTextUrl
 
 from telesoft.core import telegram as telegram_module
@@ -17,6 +18,7 @@ from telesoft.core.link_replacer import (
     replace_link_in_posts,
     validate_pattern,
 )
+from telesoft.core.pattern_compiler import compile_pattern
 from tests.conftest import MockMessage
 
 
@@ -549,6 +551,136 @@ def test_adjust_entity_offsets_drops_invalid_entities() -> None:
     # Original not mutated
     assert bold.offset == 28
     assert bold.length == 6
+
+
+def test_adjust_entity_offsets_emoji_before_bold_entity() -> None:
+    """1 emoji (👇) inside a bold entity before the URL no longer shortens bold.
+
+    Telegram entity offsets are UTF-16 code units; Python ``re`` returns
+    code-point indices. A non-BMP emoji (👇 = U+1F447) is 1 Python code point
+    but 2 UTF-16 code units (surrogate pair). The old code-point math made
+    the bold entity ``N`` chars short (``N`` = number of emoji inside it),
+    leaving the tail of the replacement non-bold.
+
+    Setup (UTF-16 offsets):
+      text = "Написать👇 tg://resolve?domain=bot&start=flow-1 end"
+      bold covers "Написать👇 tg://resolve?domain=bot&start=flow-1"
+      pattern ``tg://\\S*`` matches the URL starting at UTF-16 offset 11
+      match ends exactly at the entity end (case 2)
+
+    Expectation: bold survives covering the full ``new_link`` in
+    ``new_text`` (UTF-16 ``offset=0``, ``length=25``).
+    """
+    text = "Написать👇 tg://resolve?domain=bot&start=flow-1 end"
+    # Bold ends at the URL end (UTF-16). The URL match ends at UTF-16
+    # index 47, so the entity spans [0, 47) → offset=0, length=47.
+    bold = MessageEntityBold(offset=0, length=47)
+    new_link = "https://new.io"
+    adjusted = _adjust_entity_offsets([bold], text, r"tg://\S*", new_link)
+    assert len(adjusted) == 1
+    entity = adjusted[0]
+    assert entity.offset == 0
+    # new_link is 14 UTF-16 code units, the URL match is 36 UTF-16 code
+    # units → case 2 length = 47 + (14 - 36) = 25. The bold region decodes
+    # to "Написать👇 https://new.io" and ends exactly with ``new_link``.
+    assert entity.length == 25
+    # Verify the bold region covers the full new_link by decoding the
+    # surrogate-encoded post-substitution text slice.
+    new_text_sur = add_surrogate(text).replace(
+        "tg://resolve?domain=bot&start=flow-1", add_surrogate(new_link)
+    )
+    bold_region = del_surrogate(new_text_sur[entity.offset : entity.offset + entity.length])
+    assert bold_region.endswith(new_link)
+    # Original not mutated
+    assert bold.offset == 0
+    assert bold.length == 47
+
+
+def test_adjust_entity_offsets_multiple_emoji_bold_entity() -> None:
+    """4 emoji (👇👇👇👇) inside a bold entity before the URL no longer shortens bold.
+
+    Reproduces the user-reported "последние 4 символа ссылки нежирные"
+    (4 emoji → bold drops last 4 chars of the new link). With UTF-16 offset
+    math the entity covers the entire new link including ``=app``.
+
+    Setup (UTF-16 offsets):
+      text = "👇👇👇👇 https://old.example.com/bot?start=app end"
+      bold covers "👇👇👇👇 https://old.example.com/bot?start=app"
+      pattern ``https?://\\S*`` matches the URL at UTF-16 offset 9
+      match ends exactly at the entity end (case 2)
+
+    Expectation: bold survives covering the full ``new_link`` (UTF-16
+    ``offset=0``, ``length=40``) — including the trailing ``=app``.
+    """
+    text = "👇👇👇👇 https://old.example.com/bot?start=app end"
+    # The URL match (https?://\S*) ends at UTF-16 index 46, so the entity
+    # spans [0, 46) → offset=0, length=46.
+    bold = MessageEntityBold(offset=0, length=46)
+    new_link = "https://t.me/mynewbot?start=app"
+    adjusted = _adjust_entity_offsets([bold], text, r"https?://\S*", new_link)
+    assert len(adjusted) == 1
+    entity = adjusted[0]
+    assert entity.offset == 0
+    # new_link is 31 UTF-16 code units, URL match is 37 UTF-16 code units
+    # → case 2 length = 46 + (31 - 37) = 40. The bold region decodes to
+    # "👇👇👇👇 https://t.me/mynewbot?start=app" and ends with ``=app``.
+    assert entity.length == 40
+    new_text_sur = add_surrogate(text).replace(
+        "https://old.example.com/bot?start=app", add_surrogate(new_link)
+    )
+    bold_region = del_surrogate(new_text_sur[entity.offset : entity.offset + entity.length])
+    assert bold_region.endswith(new_link)
+    assert bold_region.endswith("=app")
+    # Original not mutated
+    assert bold.offset == 0
+    assert bold.length == 46
+
+
+def test_adjust_entity_offsets_emoji_case3b_greedy() -> None:
+    """Emoji + Simple mode ``*`` (greedy ``.*``) — case 3b keeps bold covering new_link.
+
+    Simple mode ``*`` compiles to greedy ``.*`` (NOT ``\\S*`` — that change
+    only applies to the ``full_replace=True`` tail). The greedy ``.*`` swallows
+    trailing text past the URL, so the match ends AFTER the entity end →
+    case 3b (match starts inside, ends outside entity). Without UTF-16 math
+    the bold would be 1 char short (1 emoji → 1 code-point / 2 UTF-16 units).
+
+    Setup (UTF-16 offsets):
+      text = "👇 https://old.example.com/bot?start=flow-123 end"
+      bold covers "👇 https://old.example.com/bot?start=flow-123" (ends at
+      the URL end, NOT the greedy match end)
+      pattern = compile_pattern("https://old.example.com/bot?start=flow-*",
+                                 "simple", full_replace=True)
+        → "https://old\\.example\\.com/bot\\?start=flow\\-.*" (greedy `.*`,
+          already ends with `.*` so no `\\S*` tail is appended)
+
+    Expectation: case 3b formula ``e_length = (m_start + new_link_len) -
+    e_offset`` yields a length that covers the full ``new_link`` (UTF-16
+    ``offset=0``, ``length=24``).
+    """
+    text = "👇 https://old.example.com/bot?start=flow-123 end"
+    pattern = compile_pattern(
+        "https://old.example.com/bot?start=flow-*", "simple", full_replace=True
+    )
+    assert pattern == r"https://old\.example\.com/bot\?start=flow\-.*"
+    # The URL (without greedy trailing) ends at UTF-16 index 45, so the
+    # entity spans [0, 45) → offset=0, length=45.
+    bold = MessageEntityBold(offset=0, length=45)
+    new_link = "https://t.me/mynewbot"
+    adjusted = _adjust_entity_offsets([bold], text, pattern, new_link)
+    assert len(adjusted) == 1
+    entity = adjusted[0]
+    assert entity.offset == 0
+    # The greedy `.*` match starts at UTF-16 3 and ends at UTF-16 49
+    # (includes " end"). m_end (49) > e_end (45) → case 3b.
+    # e_length = (m_start + new_link_len) - e_offset = (3 + 21) - 0 = 24.
+    assert entity.length == 24
+    new_text_sur = re.sub(pattern, add_surrogate(new_link), add_surrogate(text))
+    bold_region = del_surrogate(new_text_sur[entity.offset : entity.offset + entity.length])
+    assert bold_region.endswith(new_link)
+    # Original not mutated
+    assert bold.offset == 0
+    assert bold.length == 45
 
 
 async def test_replace_link_in_post_with_bold_crossing_boundary(
