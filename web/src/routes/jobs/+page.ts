@@ -10,7 +10,7 @@ export const ssr = false;
 export const load: PageLoad = async () => {
   try {
     const [jobsResp, channelsResp] = await Promise.all([
-      api.get<JobListResponse>("/api/jobs", { limit: 50 }),
+      api.get<JobListResponse>("/api/jobs", { limit: 20, offset: 0 }),
       api.get<ChannelListResponse>("/api/channels"),
     ]);
     return { jobs: jobsResp.jobs, total: jobsResp.total, channels: channelsResp.channels };

@@ -13,7 +13,7 @@ key_files:
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-22 (PR#66)
+last_updated: 2026-07-22 (PR#84)
 ---
 
 # telesoft — Project Map
@@ -45,7 +45,7 @@ Project map — обновляется docs-reviewer на каждый PR. Со�
 ```
 
 - **Backend** (`src/telesoft/`): FastAPI + aiosqlite + Telethon bot mode. Session auth via Starlette `SessionMiddleware` (signed cookies). Channels CRUD, replace-link runner with `asyncio.Semaphore`, EventBus pub/sub for WebSocket fan-out. Bot-mode Telethon client fetches posts by id and edits them (history iteration is forbidden for bots — see ADR PR#14). PR#62: `get_last_messages` принимает user-provided `max_id` (из `parse_post_link`), binary search удалён.
-- **Frontend** (`web/`): SvelteKit 2 + Svelte 5 runes + TypeScript + Tailwind. Login, channels list + detail with replace-link form, jobs list with 5s auto-refresh, job detail with WebSocket realtime progress + logs.
+- **Frontend** (`web/`): SvelteKit 2 + Svelte 5 runes + TypeScript + Tailwind. Login, channels list + detail with replace-link form, jobs list with 5s auto-refresh + pagination (PR#84: номера страниц 1..N, Prev/Next, pageSize=20), job detail with WebSocket realtime progress + logs.
 - **Telegram**: the bot is added as an admin to the target channel with "Edit Messages" permission. In-memory `StringSession` (no file on disk — bot-token auth is instant, no handshake to cache). PR#48: `TELEGRAM_SESSION_STRING` env var переиспользует auth_key между restarts. PR#62: integration tests используют module-scoped fixture с `TELEGRAM_SESSION_STRING` (no FloodWait).
 
 ## Tech stack
@@ -85,11 +85,11 @@ telesoft/
 
 ## Module index
 
-- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,pattern_compiler,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,patterns,ws}}, schemas/{auth,channel,job}; PR#62: telegram.py +parse_post_link, get_last_messages +max_id, _find_max_id удалён, config.py -max_probe_id, schemas/job.py +post_link, runner.py +max_id; PR#64: telegram.py edit_message +formatting_entities, link_replacer.py +_adjust_entity_offsets +50-char preview context, pattern_compiler.py apply_keep_tail→full_replace, schemas/job.py keep_tail→full_replace; PR#66: link_replacer.py _adjust_entity_offsets crossing boundary case 3a/3b + defensive validation drop invalid bounds)
-- [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts + components/{ChannelForm,ReplaceLinkForm,PreviewModal,PatternLibrary}, routes/{+layout,+page,login,channels,jobs}, tests; PR#62: ReplaceLinkForm +post_link field, types.ts +post_link; PR#64: ReplaceLinkForm keep_tail checkbox→radio "Полная"/"Частичная", types.ts keep_tail→full_replace)
+- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,pattern_compiler,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,patterns,ws}}, schemas/{auth,channel,job}; PR#62: telegram.py +parse_post_link, get_last_messages +max_id, _find_max_id удалён, config.py -max_probe_id, schemas/job.py +post_link, runner.py +max_id; PR#64: telegram.py edit_message +formatting_entities, link_replacer.py +_adjust_entity_offsets +50-char preview context, pattern_compiler.py apply_keep_tail→full_replace, schemas/job.py keep_tail→full_replace; PR#66: link_replacer.py _adjust_entity_offsets crossing boundary case 3a/3b + defensive validation drop invalid bounds; PR#84: db/models/job.py +count_jobs, db/models/log.py +count_logs, api/routers/jobs.py total=count_jobs/count_logs вместо len())
+- [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts + components/{ChannelForm,ReplaceLinkForm,PreviewModal,PatternLibrary}, routes/{+layout,+page,login,channels,jobs}, tests; PR#62: ReplaceLinkForm +post_link field, types.ts +post_link; PR#64: ReplaceLinkForm keep_tail checkbox→radio "Полная"/"Частичная", types.ts keep_tail→full_replace; PR#84: jobs/+page.svelte +pagination controls, jobs/+page.ts limit=20 offset=0)
 - [docker.md](docker.md) — `docker-compose.yml` (3 services: api + web + nginx), `Dockerfile.api`, `Dockerfile.nginx`, `web/Dockerfile.web`, `nginx.conf`, `.env.example`, `.dockerignore`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`
-- [tests.md](tests.md) — `tests/` (backend unit tests + integration tests PR#44, 191→202 unit PR#64 + 4 integration opt-in; PR#64: +7 _adjust_entity_offsets +4 replace_link_in_post preserves entity +3 full_replace API +2 preview context +1 frontend full_replace default), `web/src/tests/` (frontend 36→37 tests PR#64: login 3, channels 9, replace-link 10, jobs 5, layout 3, api 2)
+- [tests.md](tests.md) — `tests/` (backend unit tests + integration tests PR#44, 191→202 unit PR#64 + 4 integration opt-in; PR#64: +7 _adjust_entity_offsets +4 replace_link_in_post preserves entity +3 full_replace API +2 preview context +1 frontend full_replace default; PR#84: test_models_job +4 count_jobs, test_api_jobs +3 total tests, jobs.test.ts +4 pagination), `web/src/tests/` (frontend 37→41 tests PR#84: login 3, channels 9, replace-link 10, jobs 9, layout 3, api 2)
 - [scripts.md](scripts.md) — `scripts/` (standalone spike/PoC + smoke test, НЕ часть backend)
 
 ## Patterns
@@ -129,6 +129,7 @@ telesoft/
 - [PR#60 — seed built-in link patterns](../decisions/2026-07-21-pr-60-seed-patterns.md)
 - [PR#62 — replace binary search with user-provided post link + fix integration tests FloodWait](../decisions/2026-07-21-pr-62-post-link-and-floodwait.md)
 - [PR#64 — preserve formatting entities + preview context + full/partial radio](../decisions/2026-07-21-pr-64-formatting-preview-radio.md)
+- [PR#84 — jobs pagination + count_jobs/count_logs total fix](../decisions/2026-07-22-pr-84-jobs-pagination.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -152,3 +153,4 @@ telesoft/
 - [PR#60 — seed built-in link patterns](../handoff/pr-60-seed-patterns.md)
 - [PR#62 — replace binary search with user-provided post link + fix integration tests FloodWait](../handoff/pr-62-post-link-and-floodwait.md)
 - [PR#64 — preserve formatting entities + preview context + full/partial radio](../handoff/pr-64-formatting-preview-radio.md)
+- [PR#84 — jobs pagination + count_jobs/count_logs total fix](../handoff/pr-84-jobs-pagination.md)

@@ -79,6 +79,45 @@ async def test_list_jobs_filter_by_status(mock_db: aiosqlite.Connection) -> None
     assert completed[0]["status"] == "completed"
 
 
+async def test_count_jobs_all(mock_db: aiosqlite.Connection) -> None:
+    channel_id = await _make_channel(mock_db, telegram_id=31)
+    await job_model.create_job(
+        mock_db, channel_id=channel_id, pattern="p", new_link="l", created_at=_NOW
+    )
+    await job_model.create_job(
+        mock_db, channel_id=channel_id, pattern="p", new_link="l", created_at=_NOW
+    )
+    assert await job_model.count_jobs(mock_db) == 2
+
+
+async def test_count_jobs_filter_by_channel(mock_db: aiosqlite.Connection) -> None:
+    ch_a = await _make_channel(mock_db, telegram_id=32)
+    ch_b = await _make_channel(mock_db, telegram_id=33)
+    await job_model.create_job(mock_db, channel_id=ch_a, pattern="p", new_link="l", created_at=_NOW)
+    await job_model.create_job(mock_db, channel_id=ch_a, pattern="p", new_link="l", created_at=_NOW)
+    await job_model.create_job(mock_db, channel_id=ch_b, pattern="p", new_link="l", created_at=_NOW)
+    assert await job_model.count_jobs(mock_db, channel_id=ch_a) == 2
+    assert await job_model.count_jobs(mock_db, channel_id=ch_b) == 1
+
+
+async def test_count_jobs_filter_by_status(mock_db: aiosqlite.Connection) -> None:
+    channel_id = await _make_channel(mock_db, telegram_id=34)
+    j1 = await job_model.create_job(
+        mock_db, channel_id=channel_id, pattern="p", new_link="l", created_at=_NOW
+    )
+    await job_model.create_job(
+        mock_db, channel_id=channel_id, pattern="p", new_link="l", created_at=_NOW
+    )
+    await job_model.update_job_status(mock_db, job_id=int(j1["id"]), status="done")
+    assert await job_model.count_jobs(mock_db, status="pending") == 1
+    assert await job_model.count_jobs(mock_db, status="done") == 1
+    assert await job_model.count_jobs(mock_db, status="running") == 0
+
+
+async def test_count_jobs_empty(mock_db: aiosqlite.Connection) -> None:
+    assert await job_model.count_jobs(mock_db) == 0
+
+
 async def test_update_job_status(mock_db: aiosqlite.Connection) -> None:
     channel_id = await _make_channel(mock_db, telegram_id=40)
     row = await job_model.create_job(

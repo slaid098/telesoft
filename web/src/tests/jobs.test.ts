@@ -46,7 +46,8 @@ vi.mock("../lib/ws", () => ({
   },
 }));
 
-import type { Job, Log } from "../lib/types";
+import type { Channel, Job, Log } from "../lib/types";
+import JobsPage from "../routes/jobs/+page.svelte";
 import JobDetailPage from "../routes/jobs/[id]/+page.svelte";
 
 function makeJob(overrides: Partial<Job> = {}): Job {
@@ -74,6 +75,18 @@ function makeLog(overrides: Partial<Log> = {}): Log {
     success: true,
     error: null,
     edited_at: "2026-07-20T12:35:00Z",
+    ...overrides,
+  };
+}
+
+function makeChannel(overrides: Partial<Channel> = {}): Channel {
+  return {
+    id: 10,
+    telegram_id: -1001234567890,
+    title: "Test channel",
+    username: "testchannel",
+    is_active: true,
+    added_at: "2026-07-20T12:34:56Z",
     ...overrides,
   };
 }
@@ -161,5 +174,63 @@ describe("Job detail page", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.getByText(/Прогресс: 1\/4/)).toBeTruthy();
+  });
+});
+
+describe("Jobs list page — pagination", () => {
+  function makePageJobs(count: number, startId = 1): Job[] {
+    return Array.from({ length: count }, (_, i) => makeJob({ id: startId + i, status: "done" }));
+  }
+
+  it("renders pagination controls when total > pageSize", () => {
+    const channels = [makeChannel()];
+    const jobs = makePageJobs(20);
+    render(JobsPage, {
+      props: { data: { jobs, total: 45, channels } },
+    });
+
+    const nav = screen.getByRole("navigation", { name: /Пагинация задач/i });
+    expect(nav).toBeTruthy();
+    expect(screen.getByRole("button", { name: "‹ Пред." })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "След. ›" })).toBeTruthy();
+    expect(screen.getByText("3")).toBeTruthy();
+  });
+
+  it("does not render pagination when total <= pageSize", () => {
+    const channels = [makeChannel()];
+    const jobs = makePageJobs(10);
+    render(JobsPage, {
+      props: { data: { jobs, total: 10, channels } },
+    });
+
+    expect(screen.queryByRole("navigation", { name: /Пагинация задач/i })).toBeNull();
+  });
+
+  it("disables Prev on first page and Next on last page", () => {
+    const channels = [makeChannel()];
+    const jobs = makePageJobs(20);
+    render(JobsPage, {
+      props: { data: { jobs, total: 40, channels } },
+    });
+
+    const prev = screen.getByRole("button", { name: "‹ Пред." }) as HTMLButtonElement;
+    expect(prev.disabled).toBe(true);
+  });
+
+  it("fetches page 2 when Next is clicked", async () => {
+    const channels = [makeChannel()];
+    const page1Jobs = makePageJobs(20);
+    const page2Jobs = makePageJobs(20, 21).map((j) => ({ ...j, status: "done" as const }));
+    mockGet.mockResolvedValue({ jobs: page2Jobs, total: 40 });
+
+    render(JobsPage, {
+      props: { data: { jobs: page1Jobs, total: 40, channels } },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "След. ›" }));
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith("/api/jobs", { limit: 20, offset: 20 });
+    });
   });
 });

@@ -84,6 +84,29 @@ async def list_jobs(
     return await base.fetchall(db, query, tuple(params))
 
 
+async def count_jobs(
+    db: aiosqlite.Connection,
+    *,
+    channel_id: int | None = None,
+    status: str | None = None,
+) -> int:
+    """Count job rows matching the same filters as :func:`list_jobs` (no LIMIT/OFFSET)."""
+    clauses: list[str] = []
+    params: list[Any] = []
+    if channel_id is not None:
+        clauses.append("channel_id = ?")
+        params.append(channel_id)
+    if status is not None:
+        clauses.append("status = ?")
+        params.append(status)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    query = f"SELECT COUNT(*) AS cnt FROM {_TABLE} {where}"
+    row = await base.fetchone(db, query, tuple(params))
+    if row is None:
+        return 0
+    return int(row["cnt"])
+
+
 async def update_job_status(  # noqa: PLR0913
     db: aiosqlite.Connection,
     *,

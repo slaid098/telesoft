@@ -6,18 +6,25 @@ import { JOB_STATUSES, JOB_STATUS_LABELS } from "$lib/types";
 type Props = { data: { jobs: Job[]; total: number; channels: Channel[] } };
 const { data }: Props = $props();
 
+const pageSize = 20;
+
 const channelsById = $derived(new Map(data.channels.map((c) => [c.id, c])));
 
+let page = $state(1);
 let statusFilter = $state<JobStatus | "all">("all");
 let localRefresh = $state<Job[] | null>(null);
+let localTotal = $state<number | null>(null);
 let error = $state<string | null>(null);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
+const total = $derived.by<number>(() => localTotal ?? data.total);
 const jobs = $derived.by<Job[]>(() => localRefresh ?? data.jobs);
 
 const filteredJobs = $derived(
   statusFilter === "all" ? jobs : jobs.filter((j) => j.status === statusFilter),
 );
+
+const totalPages = $derived(total <= 0 ? 1 : Math.ceil(total / pageSize));
 
 const hasRunning = $derived(jobs.some((j) => j.status === "running" || j.status === "pending"));
 
@@ -42,11 +49,24 @@ function statusClass(status: Job["status"]): string {
 
 async function refresh() {
   try {
-    const resp = await api.get<JobListResponse>("/api/jobs", { limit: 50 });
+    const offset = (page - 1) * pageSize;
+    const query: Record<string, string | number | boolean | undefined | null> = {
+      limit: pageSize,
+      offset,
+    };
+    if (statusFilter !== "all") query.status = statusFilter;
+    const resp = await api.get<JobListResponse>("/api/jobs", query);
     localRefresh = resp.jobs;
+    localTotal = resp.total;
   } catch (err) {
     error = err instanceof Error ? err.message : "Не удалось обновить";
   }
+}
+
+async function goToPage(next: number) {
+  if (next < 1 || next > totalPages || next === page) return;
+  page = next;
+  await refresh();
 }
 
 $effect(() => {
@@ -184,4 +204,44 @@ $effect(() => {
       </div>
     {/each}
   </div>
+
+  {#if totalPages > 1}
+    <nav
+      aria-label="Пагинация задач"
+      class="flex items-center justify-center gap-1 pt-2"
+    >
+      <button
+        type="button"
+        onclick={() => goToPage(page - 1)}
+        disabled={page <= 1}
+        class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        ‹ Пред.
+      </button>
+
+      {#each Array.from({ length: totalPages }, (_, i) => i + 1) as p (p)}
+        <button
+          type="button"
+          onclick={() => goToPage(p)}
+          aria-current={p === page ? "page" : undefined}
+          class={`rounded-md px-3 py-2 text-sm ${
+            p === page
+              ? "border border-brand-500 bg-brand-600 font-semibold text-white"
+              : "border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+          }`}
+        >
+          {p}
+        </button>
+      {/each}
+
+      <button
+        type="button"
+        onclick={() => goToPage(page + 1)}
+        disabled={page >= totalPages}
+        class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        След. ›
+      </button>
+    </nav>
+  {/if}
 </div>
