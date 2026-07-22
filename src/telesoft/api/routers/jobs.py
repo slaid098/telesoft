@@ -216,7 +216,11 @@ async def list_jobs_endpoint(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> JobListResponse:
-    """List jobs, optionally filtered by channel and/or status."""
+    """List jobs, optionally filtered by channel and/or status.
+
+    ``total`` is the total number of jobs matching the filters (ignoring
+    LIMIT/OFFSET), for pagination page count calculation.
+    """
     async with get_db() as db:
         rows = await job_model.list_jobs(
             db,
@@ -225,8 +229,9 @@ async def list_jobs_endpoint(
             limit=limit,
             offset=offset,
         )
+        total = await job_model.count_jobs(db, channel_id=channel_id, status=status_filter)
     jobs = [JobResponse.from_row(row) for row in rows]
-    return JobListResponse(jobs=jobs, total=len(jobs))
+    return JobListResponse(jobs=jobs, total=total)
 
 
 @router.get("/api/jobs/{job_id}", response_model=JobResponse)
@@ -243,12 +248,17 @@ async def get_job_logs_endpoint(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> LogListResponse:
-    """Return the logs for a job."""
+    """Return the logs for a job.
+
+    ``total`` is the total number of logs for the job (ignoring
+    LIMIT/OFFSET), for pagination page count calculation.
+    """
     async with get_db() as db:
         await _get_job_or_404(db, job_id)
         rows = await log_model.list_logs(db, job_id=job_id, limit=limit, offset=offset)
+        total = await log_model.count_logs(db, job_id=job_id)
     logs = [LogResponse.from_row(row) for row in rows]
-    return LogListResponse(logs=logs, total=len(logs))
+    return LogListResponse(logs=logs, total=total)
 
 
 @router.post("/api/jobs/{job_id}/cancel")

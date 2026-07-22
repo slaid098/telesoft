@@ -66,6 +66,16 @@ async def list_logs(
     )
 
 
+async def count_logs(db: aiosqlite.Connection, *, job_id: int) -> int:
+    """Count log rows for a job (no LIMIT/OFFSET)."""
+    row = await base.fetchone(
+        db, f"SELECT COUNT(*) AS cnt FROM {_TABLE} WHERE job_id = ?", (job_id,)
+    )
+    if row is None:
+        return 0
+    return int(row["cnt"])
+
+
 async def delete_logs(
     db: aiosqlite.Connection,
     *,
