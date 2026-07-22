@@ -33,11 +33,11 @@ export type JobStatus = "pending" | "running" | "done" | "failed" | "cancelled";
 export const JOB_STATUSES: JobStatus[] = ["pending", "running", "done", "failed", "cancelled"];
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
-  pending: "Pending",
-  running: "Running",
-  done: "Done",
-  failed: "Failed",
-  cancelled: "Cancelled",
+  pending: "Ожидает",
+  running: "Выполняется",
+  done: "Готово",
+  failed: "Ошибка",
+  cancelled: "Отменена",
 };
 
 export type Job = {
