@@ -90,6 +90,10 @@ def _adjust_entity_offsets(
       entity now covers everything from its original start up to the end of
       the replacement). A shorter replacement yields a shorter but still
       positive length, preserving the entity instead of dropping it.
+    - match swallows the entity entirely (case 5, ``m_start < e_offset`` and
+      ``m_end > e_end``) → set ``entity.offset`` to ``m_start`` and
+      ``entity.length`` to ``new_link_len`` so the entity survives over the
+      freshly inserted replacement.
 
     After all matches are processed, each entity is validated against the
     post-substitution surrogate-encoded text length: entities with negative
@@ -124,6 +128,9 @@ def _adjust_entity_offsets(
                 e_offset = new_offset
             elif m_start >= e_offset and m_start < e_end and m_end > e_end:
                 e_length = (m_start + new_link_len) - e_offset
+            elif m_start < e_offset and m_end > e_end:
+                e_offset = m_start
+                e_length = new_link_len
         new_entity.offset = e_offset + shift
         new_entity.length = e_length
         if (
