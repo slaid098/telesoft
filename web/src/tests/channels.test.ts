@@ -64,13 +64,13 @@ describe("Channels page", () => {
 
     expect(screen.getAllByText("alpha").length).toBeGreaterThan(0);
     expect(screen.getAllByText("beta").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("active").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("inactive").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("активен").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("неактивен").length).toBeGreaterThan(0);
   });
 
   it("renders empty state when there are no channels", () => {
     render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
-    expect(screen.getAllByText(/No channels/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Нет каналов/i).length).toBeGreaterThan(0);
   });
 
   it("calls DELETE /api/channels/{id} when Delete is clicked", async () => {
@@ -80,7 +80,7 @@ describe("Channels page", () => {
 
     window.confirm = vi.fn(() => true);
     mockGet.mockResolvedValue({ channels: [], total: 0 });
-    const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+    const deleteButtons = screen.getAllByRole("button", { name: "Удалить" });
     await fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
@@ -90,10 +90,10 @@ describe("Channels page", () => {
 
   it("opens Add channel form when Add channel button is clicked", async () => {
     render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
-    const addButton = screen.getByRole("button", { name: /Add channel/i });
+    const addButton = screen.getByRole("button", { name: /Добавить канал/i });
     await fireEvent.click(addButton);
     expect(screen.getByLabelText(/Telegram ID/i)).toBeTruthy();
-    expect(screen.getByLabelText(/Title/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Название/i)).toBeTruthy();
   });
 
   it("submits Add channel form and refreshes the list", async () => {
@@ -103,14 +103,14 @@ describe("Channels page", () => {
 
     render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
 
-    await fireEvent.click(screen.getByRole("button", { name: /Add channel/i }));
+    await fireEvent.click(screen.getByRole("button", { name: /Добавить канал/i }));
 
     const tgInput = screen.getByLabelText(/Telegram ID/i);
-    const titleInput = screen.getByLabelText(/Title/i);
+    const titleInput = screen.getByLabelText(/Название/i);
     await fireEvent.input(tgInput, { target: { value: "-1001234567890" } });
     await fireEvent.input(titleInput, { target: { value: "fresh" } });
 
-    const form = screen.getByRole("button", { name: "Save" }).closest("form");
+    const form = screen.getByRole("button", { name: "Сохранить" }).closest("form");
     if (!form) throw new Error("form not found");
     await fireEvent.submit(form);
 
@@ -127,10 +127,10 @@ describe("Channels page", () => {
 
   it("hides Add channel form on Cancel", async () => {
     render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
-    await fireEvent.click(screen.getByRole("button", { name: /Add channel/i }));
+    await fireEvent.click(screen.getByRole("button", { name: /Добавить канал/i }));
     expect(screen.getByLabelText(/Telegram ID/i)).toBeTruthy();
 
-    await fireEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+    await fireEvent.click(screen.getByRole("button", { name: /Отмена/i }));
     expect(screen.queryByLabelText(/Telegram ID/i)).toBeNull();
   });
 });
@@ -138,7 +138,7 @@ describe("Channels page", () => {
 describe("ChannelForm", () => {
   it("disables Save button when fields are empty", () => {
     render(ChannelForm, { props: { onSaved: vi.fn(), onCancel: vi.fn() } });
-    const saveButton = screen.getByRole("button", { name: /Save/i }) as HTMLButtonElement;
+    const saveButton = screen.getByRole("button", { name: /Сохранить/i }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
   });
 
@@ -147,8 +147,8 @@ describe("ChannelForm", () => {
     await fireEvent.input(screen.getByLabelText(/Telegram ID/i), {
       target: { value: "-1001234567890" },
     });
-    await fireEvent.input(screen.getByLabelText(/Title/i), { target: { value: "alpha" } });
-    const saveButton = screen.getByRole("button", { name: /Save/i }) as HTMLButtonElement;
+    await fireEvent.input(screen.getByLabelText(/Название/i), { target: { value: "alpha" } });
+    const saveButton = screen.getByRole("button", { name: /Сохранить/i }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
   });
 
@@ -161,9 +161,9 @@ describe("ChannelForm", () => {
     await fireEvent.input(screen.getByLabelText(/Telegram ID/i), {
       target: { value: "-1001234567890" },
     });
-    await fireEvent.input(screen.getByLabelText(/Title/i), { target: { value: "echo" } });
+    await fireEvent.input(screen.getByLabelText(/Название/i), { target: { value: "echo" } });
 
-    const form = screen.getByRole("button", { name: "Save" }).closest("form");
+    const form = screen.getByRole("button", { name: "Сохранить" }).closest("form");
     if (!form) throw new Error("form not found");
     await fireEvent.submit(form);
 

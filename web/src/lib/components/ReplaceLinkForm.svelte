@@ -14,9 +14,9 @@ type Props = {
 const { channelId, onSubmit, onPreview, runNonce = 0 }: Props = $props();
 
 const MODES: { value: ReplaceMode; label: string }[] = [
-  { value: "simple", label: "Simple" },
-  { value: "library", label: "Pattern Library" },
-  { value: "advanced", label: "Advanced" },
+  { value: "simple", label: "Простой" },
+  { value: "library", label: "Библиотека паттернов" },
+  { value: "advanced", label: "Расширенный" },
 ];
 
 let mode = $state<ReplaceMode>("simple");
@@ -59,7 +59,7 @@ async function loadPatterns() {
   try {
     patterns = await listPatterns();
   } catch (err) {
-    error = apiErrorMessage(err, "Failed to load patterns");
+    error = apiErrorMessage(err, "Не удалось загрузить паттерны");
   }
 }
 
@@ -84,7 +84,7 @@ function selectMode(next: ReplaceMode) {
 
 async function handlePreview() {
   if (!canSubmit) {
-    error = "Fill all required fields";
+    error = "Заполните все обязательные поля";
     return;
   }
   error = null;
@@ -100,7 +100,7 @@ async function handlePreview() {
     });
     onPreview?.(result);
   } catch (err) {
-    error = apiErrorMessage(err, "Preview failed");
+    error = apiErrorMessage(err, "Не удалось выполнить предпросмотр");
   } finally {
     previewing = false;
   }
@@ -108,7 +108,7 @@ async function handlePreview() {
 
 async function submitJob() {
   if (!canSubmit) {
-    error = "Fill all required fields";
+    error = "Заполните все обязательные поля";
     return;
   }
   error = null;
@@ -125,7 +125,7 @@ async function submitJob() {
     onSubmit?.(result);
     await goto(`/jobs/${result.job_id}`);
   } catch (err) {
-    error = apiErrorMessage(err, "Replace-link failed");
+    error = apiErrorMessage(err, "Не удалось запустить замену ссылок");
   } finally {
     submitting = false;
   }
@@ -138,7 +138,7 @@ async function handleSubmit(event: Event) {
 </script>
 
 <form class="space-y-4" onsubmit={handleSubmit}>
-  <h2 class="text-lg font-semibold text-white">Replace link</h2>
+  <h2 class="text-lg font-semibold text-white">Замена ссылки</h2>
 
   <div role="tablist" class="flex gap-1 rounded-md border border-slate-700 bg-slate-800 p-1">
     {#each MODES as m (m.value)}
@@ -227,7 +227,7 @@ async function handleSubmit(event: Event) {
       aria-labelledby="rl-tab-advanced"
     >
       <label for="rl-pattern" class="mb-1 block text-xs font-medium text-slate-300">
-        Pattern (raw regex)
+        Паттерн (регулярное выражение)
       </label>
       <input
         id="rl-pattern"
@@ -238,7 +238,7 @@ async function handleSubmit(event: Event) {
         required
       />
       <p class="mt-1 text-xs text-slate-400">
-        Regex для поиска. Валидация выполняется на backend (ошибка вернётся в ответе).
+        Regex для поиска. Валидация выполняется на бэкенде (ошибка вернётся в ответе).
       </p>
     </div>
   {/if}
@@ -306,7 +306,7 @@ async function handleSubmit(event: Event) {
 
   <div>
     <label for="rl-limit" class="mb-1 block text-xs font-medium text-slate-300">
-      Limit (последних N постов для сканирования)
+      Лимит (последних N постов для сканирования)
     </label>
     <input
       id="rl-limit"

@@ -40,20 +40,20 @@ beforeEach(() => {
 describe("Login page", () => {
   it("renders the form with username and password fields", () => {
     render(Login);
-    expect(screen.getByLabelText(/Username/i)).toBeTruthy();
-    expect(screen.getByLabelText(/Password/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Sign in/i })).toBeTruthy();
+    expect(screen.getByLabelText(/Имя пользователя/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Пароль/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Войти/i })).toBeTruthy();
   });
 
   it("submits credentials and redirects on success", async () => {
     mockPost.mockResolvedValue({ status: "ok" });
     render(Login);
 
-    const usernameInput = screen.getByLabelText(/Username/i);
-    const passwordInput = screen.getByLabelText(/Password/i);
+    const usernameInput = screen.getByLabelText(/Имя пользователя/i);
+    const passwordInput = screen.getByLabelText(/Пароль/i);
     await fireEvent.input(usernameInput, { target: { value: "admin" } });
     await fireEvent.input(passwordInput, { target: { value: "secret" } });
-    await fireEvent.submit(screen.getByRole("button", { name: /Sign in/i }));
+    await fireEvent.submit(screen.getByRole("button", { name: /Войти/i }));
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith("/api/auth/login", {
@@ -68,17 +68,17 @@ describe("Login page", () => {
 
   it("shows an error on 401 response", async () => {
     const { ApiError } = await import("../lib/api");
-    mockPost.mockRejectedValue(new ApiError(401, null, "Invalid credentials"));
+    mockPost.mockRejectedValue(new ApiError(401, null, "Неверные учётные данные"));
     render(Login);
 
-    const usernameInput = screen.getByLabelText(/Username/i);
-    const passwordInput = screen.getByLabelText(/Password/i);
+    const usernameInput = screen.getByLabelText(/Имя пользователя/i);
+    const passwordInput = screen.getByLabelText(/Пароль/i);
     await fireEvent.input(usernameInput, { target: { value: "admin" } });
     await fireEvent.input(passwordInput, { target: { value: "wrong" } });
-    await fireEvent.submit(screen.getByRole("button", { name: /Sign in/i }));
+    await fireEvent.submit(screen.getByRole("button", { name: /Войти/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Invalid credentials/i)).toBeTruthy();
+      expect(screen.getByText(/Неверные учётные данные/i)).toBeTruthy();
     });
   });
 });

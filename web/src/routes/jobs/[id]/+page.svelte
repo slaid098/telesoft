@@ -102,7 +102,7 @@ async function handleCancel() {
     await api.post<{ job_id: number; status: string }>(`/api/jobs/${job.id}/cancel`);
     await refetchJob();
   } catch (err) {
-    cancelError = err instanceof Error ? err.message : "Cancel failed";
+    cancelError = err instanceof Error ? err.message : "Не удалось отменить";
   } finally {
     cancelling = false;
   }
@@ -113,7 +113,7 @@ async function handleCancel() {
   <div class="flex flex-wrap items-start justify-between gap-3">
     <div class="space-y-1">
       <div class="flex items-center gap-2">
-        <h1 class="text-2xl font-semibold text-white">Job #{job.id}</h1>
+        <h1 class="text-2xl font-semibold text-white">Задача #{job.id}</h1>
         <span
           class={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass(
             job.status,
@@ -124,27 +124,27 @@ async function handleCancel() {
       </div>
       <div class="text-sm text-slate-400 flex flex-col space-y-1 sm:flex-row sm:space-y-0 sm:gap-3">
         <span>
-          Channel: <span class="text-slate-200">#{job.channel_id}</span>
+          Канал: <span class="text-slate-200">#{job.channel_id}</span>
         </span>
         <span>
-          Pattern: <span class="text-slate-200">{job.pattern}</span>
+          Паттерн: <span class="text-slate-200">{job.pattern}</span>
         </span>
       </div>
       <div class="text-sm text-slate-400">
-        New link: <span class="text-slate-200">{job.new_link}</span>
+        Новая ссылка: <span class="text-slate-200">{job.new_link}</span>
       </div>
     </div>
     <a
       href="/jobs"
       class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
     >
-      Back to jobs
+      Назад к задачам
     </a>
   </div>
 
   <div class="rounded-lg border border-slate-800 bg-slate-900 p-4">
     <div class="flex items-center justify-between text-xs text-slate-400">
-      <span>Progress: {job.edited}/{job.total || "?"}</span>
+      <span>Прогресс: {job.edited}/{job.total || "?"}</span>
       <span>{progressPct}%</span>
     </div>
     <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
@@ -155,7 +155,7 @@ async function handleCancel() {
       </div>
     </div>
     <div class="mt-2 text-xs text-slate-400">
-      Edited: <span class="text-emerald-300">{job.edited}</span> · Failed:
+      Изменено: <span class="text-emerald-300">{job.edited}</span> · Ошибки:
       <span class="text-red-300">{job.failed}</span>
     </div>
 
@@ -163,7 +163,7 @@ async function handleCancel() {
       <div
         class="mt-3 rounded-md border border-amber-900 bg-amber-950 px-3 py-2 text-sm text-amber-200"
       >
-        No posts matched the pattern. Check if the channel has posts or if your pattern is correct.
+        Ни один пост не соответствует паттерну. Проверьте, что в канале есть посты и паттерн корректен.
       </div>
     {/if}
 
@@ -175,7 +175,7 @@ async function handleCancel() {
           disabled={cancelling}
           class="rounded-md bg-red-700 px-3 py-2.5 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-60"
         >
-          {cancelling ? "Cancelling…" : "Cancel job"}
+          {cancelling ? "Отмена…" : "Отменить задачу"}
         </button>
       </div>
     {/if}
@@ -190,23 +190,23 @@ async function handleCancel() {
   </div>
 
   <section class="space-y-2">
-    <h2 class="text-lg font-semibold text-white">Logs ({logs.length})</h2>
+    <h2 class="text-lg font-semibold text-white">Логи ({logs.length})</h2>
     {#if logs.length === 0}
       <div
         class="rounded-md border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400"
       >
-        No logs yet — logs appear as the job progresses
+        Логов пока нет — они появляются по мере выполнения задачи
       </div>
     {:else}
       <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
         <table class="min-w-full divide-y divide-slate-800 text-sm">
           <thead class="text-xs text-slate-400">
             <tr>
-              <th class="px-3 py-2 text-left font-medium">Message ID</th>
-              <th class="px-3 py-2 text-left font-medium">Success</th>
-              <th class="px-3 py-2 text-left font-medium">Error</th>
-              <th class="px-3 py-2 text-left font-medium">Old text</th>
-              <th class="px-3 py-2 text-left font-medium">Edited at</th>
+              <th class="px-3 py-2 text-left font-medium">ID сообщения</th>
+              <th class="px-3 py-2 text-left font-medium">Успех</th>
+              <th class="px-3 py-2 text-left font-medium">Ошибка</th>
+              <th class="px-3 py-2 text-left font-medium">Старый текст</th>
+              <th class="px-3 py-2 text-left font-medium">Изменён</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">
@@ -246,15 +246,15 @@ async function handleCancel() {
             </div>
             <dl class="mt-2 space-y-1 text-xs text-slate-300">
               <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Error</dt>
+                <dt class="text-slate-400">Ошибка</dt>
                 <dd class="truncate" title={log.error ?? ""}>{log.error ?? "—"}</dd>
               </div>
               <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Old text</dt>
+                <dt class="text-slate-400">Старый текст</dt>
                 <dd class="truncate" title={log.old_text ?? ""}>{log.old_text ?? "—"}</dd>
               </div>
               <div class="flex justify-between gap-2">
-                <dt class="text-slate-400">Edited at</dt>
+                <dt class="text-slate-400">Изменён</dt>
                 <dd>{log.edited_at}</dd>
               </div>
             </dl>

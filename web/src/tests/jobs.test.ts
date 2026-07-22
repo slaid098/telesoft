@@ -96,9 +96,9 @@ describe("Job detail page", () => {
     const logs = [makeLog()];
     render(JobDetailPage, { props: { data: { job, logs } } });
 
-    expect(screen.getByText(/Job #1/)).toBeTruthy();
-    expect(screen.getByText(/Running/)).toBeTruthy();
-    expect(screen.getByText(/Progress: 1\/4/)).toBeTruthy();
+    expect(screen.getByText(/Задача #1/)).toBeTruthy();
+    expect(screen.getByText(/Выполняется/)).toBeTruthy();
+    expect(screen.getByText(/Прогресс: 1\/4/)).toBeTruthy();
     expect(screen.getByText("100")).toBeTruthy();
   });
 
@@ -109,7 +109,7 @@ describe("Job detail page", () => {
     const job = makeJob();
     render(JobDetailPage, { props: { data: { job, logs: [] } } });
 
-    await fireEvent.click(screen.getByRole("button", { name: /Cancel job/i }));
+    await fireEvent.click(screen.getByRole("button", { name: /Отменить задачу/i }));
 
     await waitFor(() => {
       expect(mockPost).toHaveBeenCalledWith("/api/jobs/1/cancel");
@@ -120,12 +120,12 @@ describe("Job detail page", () => {
     const job = makeJob({ edited: 1, total: 4 });
     render(JobDetailPage, { props: { data: { job, logs: [] } } });
 
-    expect(screen.getByText(/Progress: 1\/4/)).toBeTruthy();
+    expect(screen.getByText(/Прогресс: 1\/4/)).toBeTruthy();
 
     emitWsEvent("progress", { job_id: 1, edited: 3, failed: 0, total: 4 });
 
     await waitFor(() => {
-      expect(screen.getByText(/Progress: 3\/4/)).toBeTruthy();
+      expect(screen.getByText(/Прогресс: 3\/4/)).toBeTruthy();
     });
   });
 
@@ -160,6 +160,6 @@ describe("Job detail page", () => {
     emitWsEvent("progress", { job_id: 999, edited: 2, total: 5 });
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(screen.getByText(/Progress: 1\/4/)).toBeTruthy();
+    expect(screen.getByText(/Прогресс: 1\/4/)).toBeTruthy();
   });
 });

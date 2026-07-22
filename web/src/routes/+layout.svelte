@@ -9,8 +9,8 @@ const { data, children } = $props();
 type NavItem = { href: string; label: string; icon: string };
 
 const navItems: NavItem[] = [
-  { href: "/channels", label: "Channels", icon: "📁" },
-  { href: "/jobs", label: "Jobs", icon: "⚙️" },
+  { href: "/channels", label: "Каналы", icon: "📁" },
+  { href: "/jobs", label: "Задачи", icon: "⚙️" },
 ];
 
 const isLogin = $derived(page.url.pathname === "/login");
@@ -51,7 +51,7 @@ async function handleLogout() {
       <div class="border-t border-slate-800 p-3">
         {#if username}
           <div class="mb-2 truncate px-2 text-xs text-slate-400">
-            Signed in as <span class="text-slate-200">{username}</span>
+            Вы вошли как <span class="text-slate-200">{username}</span>
           </div>
         {/if}
         <button
@@ -59,7 +59,7 @@ async function handleLogout() {
           onclick={handleLogout}
           class="w-full rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-slate-700"
         >
-          Logout
+          Выйти
         </button>
       </div>
     </aside>
@@ -71,7 +71,7 @@ async function handleLogout() {
         <span class="text-base font-semibold text-white sm:hidden">telesoft</span>
         {#if username}
           <span class="hidden text-xs text-slate-400 sm:block">
-            Signed in as <span class="text-slate-200">{username}</span>
+            Вы вошли как <span class="text-slate-200">{username}</span>
           </span>
         {/if}
       </header>
@@ -82,7 +82,7 @@ async function handleLogout() {
 
       <nav
         class="grid grid-cols-2 border-t border-slate-800 bg-slate-900 sm:hidden"
-        aria-label="Mobile navigation"
+        aria-label="Мобильная навигация"
       >
         {#each navItems as item (item.href)}
           <a

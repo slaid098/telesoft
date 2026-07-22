@@ -43,12 +43,12 @@ beforeEach(() => {
 describe("Layout navigation", () => {
   it("renders the Channels nav item", () => {
     render(LayoutHarness, { props: { data: { user: "admin" } } });
-    expect(screen.getAllByText("Channels").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Каналы").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders the logout button", () => {
     render(LayoutHarness, { props: { data: { user: "admin" } } });
-    expect(screen.getByRole("button", { name: /Logout/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Выйти/i })).toBeTruthy();
   });
 
   it("shows the signed-in username", () => {
