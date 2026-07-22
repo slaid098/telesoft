@@ -14,6 +14,6 @@ export const load: PageLoad = async () => {
   } catch (err) {
     const status =
       err instanceof Error && "status" in err ? (err as { status: number }).status : 500;
-    error(status, "Failed to load channels");
+    error(status, "Не удалось загрузить каналы");
   }
 };

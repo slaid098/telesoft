@@ -40,10 +40,10 @@ function statusClass(status: Job["status"]): string {
         {/if}
         {#if channel.is_active}
           <span class="rounded bg-emerald-900/60 px-2 py-0.5 text-xs text-emerald-200">
-            active
+            активен
           </span>
         {:else}
-          <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400">inactive</span>
+          <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400">неактивен</span>
         {/if}
       </div>
     </div>
@@ -51,7 +51,7 @@ function statusClass(status: Job["status"]): string {
       href="/channels"
       class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
     >
-      Back to channels
+      Назад к каналам
     </a>
   </div>
 
@@ -65,14 +65,14 @@ function statusClass(status: Job["status"]): string {
 
   <section class="space-y-2">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold text-white">Run history (last 5)</h2>
-      <a href="/jobs" class="text-sm text-brand-400 hover:text-brand-300">View all jobs →</a>
+      <h2 class="text-lg font-semibold text-white">История запусков (последние 5)</h2>
+      <a href="/jobs" class="text-sm text-brand-400 hover:text-brand-300">Все задачи →</a>
     </div>
     {#if recentJobs.length === 0}
       <div
         class="rounded-md border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400"
       >
-        No replace-link jobs yet for this channel
+        Для этого канала пока нет запусков замены ссылок
       </div>
     {:else}
       <div class="hidden overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
@@ -80,9 +80,9 @@ function statusClass(status: Job["status"]): string {
           <thead class="text-xs text-slate-400">
             <tr>
               <th class="px-3 py-2 text-left font-medium">ID</th>
-              <th class="px-3 py-2 text-left font-medium">Status</th>
-              <th class="px-3 py-2 text-left font-medium">Progress</th>
-              <th class="px-3 py-2 text-left font-medium">Created</th>
+              <th class="px-3 py-2 text-left font-medium">Статус</th>
+              <th class="px-3 py-2 text-left font-medium">Прогресс</th>
+              <th class="px-3 py-2 text-left font-medium">Создан</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">
@@ -126,7 +126,7 @@ function statusClass(status: Job["status"]): string {
                 {JOB_STATUS_LABELS[job.status]}
               </span>
             </div>
-            <div class="mt-2 text-xs text-slate-300">Progress: {job.edited}/{job.total}</div>
+            <div class="mt-2 text-xs text-slate-300">Прогресс: {job.edited}/{job.total}</div>
             <div class="text-xs text-slate-400">{job.created_at}</div>
           </div>
         {/each}

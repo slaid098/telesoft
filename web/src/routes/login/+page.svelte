@@ -15,7 +15,7 @@ async function handleSubmit(event: Event) {
   event.preventDefault();
   error = null;
   if (!username.trim() || !password) {
-    error = "Enter username and password";
+    error = "Введите имя пользователя и пароль";
     return;
   }
   loading = true;
@@ -27,11 +27,11 @@ async function handleSubmit(event: Event) {
     await goto(redirectTo, { replaceState: true });
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
-      error = "Invalid credentials";
+      error = "Неверные учётные данные";
     } else if (err instanceof ApiError) {
-      error = err.message || "Login failed";
+      error = err.message || "Не удалось войти";
     } else {
-      error = "Network error";
+      error = "Ошибка сети";
     }
   } finally {
     loading = false;
@@ -42,12 +42,12 @@ async function handleSubmit(event: Event) {
 <div class="flex min-h-screen items-center justify-center bg-slate-950 px-4">
   <div class="w-full max-w-sm rounded-lg border border-slate-800 bg-slate-900 p-6 shadow-xl">
     <h1 class="mb-1 text-2xl font-semibold text-white">telesoft</h1>
-    <p class="mb-6 text-sm text-slate-400">Sign in to continue</p>
+    <p class="mb-6 text-sm text-slate-400">Войдите, чтобы продолжить</p>
 
     <form class="space-y-4" onsubmit={handleSubmit}>
       <div>
         <label for="username" class="mb-1 block text-xs font-medium text-slate-300">
-          Username
+          Имя пользователя
         </label>
         <input
           id="username"
@@ -63,7 +63,7 @@ async function handleSubmit(event: Event) {
 
       <div>
         <label for="password" class="mb-1 block text-xs font-medium text-slate-300">
-          Password
+          Пароль
         </label>
         <input
           id="password"
@@ -88,7 +88,7 @@ async function handleSubmit(event: Event) {
         disabled={!canSubmit}
         class="w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {loading ? "Signing in…" : "Sign in"}
+        {loading ? "Вход…" : "Войти"}
       </button>
     </form>
   </div>

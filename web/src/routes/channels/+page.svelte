@@ -18,18 +18,18 @@ async function reload() {
     const data = await api.get<{ channels: Channel[]; total: number }>("/api/channels");
     localRefresh = data.channels;
   } catch (err) {
-    error = err instanceof ApiError ? err.message : "Failed to reload";
+    error = err instanceof ApiError ? err.message : "Не удалось перезагрузить";
   }
 }
 
 async function deleteChannel(channel: Channel) {
-  if (!confirm(`Delete channel "${channel.title}"?`)) return;
+  if (!confirm(`Удалить канал «${channel.title}»?`)) return;
   busy = true;
   try {
     await api.del(`/api/channels/${channel.id}`);
     await reload();
   } catch (err) {
-    error = err instanceof ApiError ? err.message : "Delete failed";
+    error = err instanceof ApiError ? err.message : "Не удалось удалить";
   } finally {
     busy = false;
   }
@@ -43,13 +43,13 @@ function handleSaved(_channel: Channel) {
 
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-2xl font-semibold text-white">Channels</h1>
+    <h1 class="text-2xl font-semibold text-white">Каналы</h1>
     <button
       type="button"
       onclick={() => (showForm = !showForm)}
       class="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700"
     >
-      {showForm ? "Close" : "Add channel"}
+      {showForm ? "Закрыть" : "Добавить канал"}
     </button>
   </div>
 
@@ -69,11 +69,11 @@ function handleSaved(_channel: Channel) {
     <table class="min-w-full divide-y divide-slate-800 text-sm">
       <thead class="bg-slate-900 text-xs text-slate-400">
         <tr>
-          <th class="px-3 py-2 text-left font-medium">Title</th>
+          <th class="px-3 py-2 text-left font-medium">Название</th>
           <th class="px-3 py-2 text-left font-medium">Telegram ID</th>
           <th class="px-3 py-2 text-left font-medium">Username</th>
-          <th class="px-3 py-2 text-left font-medium">Active</th>
-          <th class="px-3 py-2 text-right font-medium">Actions</th>
+          <th class="px-3 py-2 text-left font-medium">Активен</th>
+          <th class="px-3 py-2 text-right font-medium">Действия</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800">
@@ -87,11 +87,11 @@ function handleSaved(_channel: Channel) {
             <td class="px-3 py-2">
               {#if ch.is_active}
                 <span class="rounded bg-emerald-900/60 px-2 py-0.5 text-xs text-emerald-200">
-                  active
+                  активен
                 </span>
               {:else}
                 <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
-                  inactive
+                  неактивен
                 </span>
               {/if}
             </td>
@@ -102,13 +102,13 @@ function handleSaved(_channel: Channel) {
                 disabled={busy}
                 class="rounded-md bg-red-900 px-2 py-1 text-xs text-red-100 hover:bg-red-800 disabled:opacity-60"
               >
-                Delete
+                Удалить
               </button>
             </td>
           </tr>
         {:else}
           <tr>
-            <td colspan="5" class="px-3 py-8 text-center text-slate-400">No channels</td>
+            <td colspan="5" class="px-3 py-8 text-center text-slate-400">Нет каналов</td>
           </tr>
         {/each}
       </tbody>
@@ -127,11 +127,11 @@ function handleSaved(_channel: Channel) {
           </a>
           {#if ch.is_active}
             <span class="rounded bg-emerald-900/60 px-2 py-0.5 text-xs text-emerald-200">
-              active
+              активен
             </span>
           {:else}
             <span class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
-              inactive
+              неактивен
             </span>
           {/if}
         </div>
@@ -150,7 +150,7 @@ function handleSaved(_channel: Channel) {
             href={`/channels/${ch.id}`}
             class="rounded-md bg-brand-600 px-2 py-1 text-xs text-white hover:bg-brand-700"
           >
-            Open
+            Открыть
           </a>
           <button
             type="button"
@@ -158,13 +158,13 @@ function handleSaved(_channel: Channel) {
             disabled={busy}
             class="rounded-md bg-red-900 px-2 py-1 text-xs text-red-100 hover:bg-red-800 disabled:opacity-60"
           >
-            Delete
+            Удалить
           </button>
         </div>
       </div>
     {:else}
       <div class="rounded-lg border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400">
-        No channels
+        Нет каналов
       </div>
     {/each}
   </div>

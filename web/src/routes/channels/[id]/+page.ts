@@ -10,7 +10,7 @@ export const ssr = false;
 export const load: PageLoad = async ({ params }) => {
   const id = Number(params.id);
   if (!Number.isFinite(id) || id <= 0) {
-    error(400, "Invalid channel id");
+    error(400, "Некорректный id канала");
   }
   try {
     const [channel, jobsResp] = await Promise.all([
@@ -24,6 +24,6 @@ export const load: PageLoad = async ({ params }) => {
     if (status === 404) {
       redirect(303, "/channels");
     }
-    error(status, "Failed to load channel");
+    error(status, "Не удалось загрузить канал");
   }
 };
