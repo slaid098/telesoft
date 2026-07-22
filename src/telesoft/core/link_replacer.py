@@ -123,7 +123,7 @@ async def replace_link_in_post(
     """Regex-replace links in an already-fetched *message* and edit it via Telethon.
 
     Two replacement paths are supported:
-    - URL appears in the raw ``message.text`` → regex substitution is applied
+    - URL appears in the raw ``message.message`` → regex substitution is applied
       and the post is edited via ``edit_message``.
     - URL appears inside a ``MessageEntityTextUrl`` entity (formatted link) →
       matching entities have their ``url`` mutated in-place to *new_link* and
@@ -139,7 +139,7 @@ async def replace_link_in_post(
     """
     message_id = int(message.id)
     regex = re.compile(pattern)
-    text = message.text or ""
+    text = message.message or ""
     new_text, text_count = replace_link(text, pattern, new_link)
 
     entities = getattr(message, "entities", None) or []
@@ -226,7 +226,7 @@ async def find_posts_with_pattern(messages: list[Any], pattern: str) -> list[Any
     regex = re.compile(pattern)
     matching: list[Any] = []
     for m in messages:
-        text = getattr(m, "text", None) or ""
+        text = getattr(m, "message", None) or ""
         entity_urls = _entity_urls(m)
         full_text = text + " " + " ".join(entity_urls)
         matched = bool(full_text.strip()) and bool(regex.search(full_text))
@@ -287,7 +287,7 @@ def _preview_one(
     matches, ``before``/``after`` carry only the URL (issue #55 / #63).
     """
     message_id = int(message.id)
-    text = getattr(message, "text", None) or ""
+    text = getattr(message, "message", None) or ""
     text_match = regex.search(text)
     if text_match:
         _, count = replace_link(text, pattern, new_link)
