@@ -13,13 +13,13 @@ key_files:
   - src/telesoft/db/connection.py — aiosqlite connection layer (init_db/get_db/close_db, _create_schema регистрирует channel/job/log/pattern models PR#56 + seed_builtin_patterns PR#60)
   - src/telesoft/db/base.py — базовые execute/executemany/insert/fetchone/fetchall
   - src/telesoft/db/models/channel.py — CRUD для channels
-  - src/telesoft/db/models/job.py — CRUD для edit_jobs
-  - src/telesoft/db/models/log.py — CRUD для edit_logs
+  - src/telesoft/db/models/job.py — CRUD для edit_jobs + count_jobs (PR#84 — SELECT COUNT(*) с теми же WHERE-фильтрами что list_jobs, без LIMIT/OFFSET, для реального total в пагинации)
+  - src/telesoft/db/models/log.py — CRUD для edit_logs + count_logs (PR#84 — SELECT COUNT(*) WHERE job_id=?, для реального total логов)
   - src/telesoft/db/models/pattern.py — PR#56: link_patterns table (id/name/pattern/description/is_builtin/created_at) + idx_link_patterns_name; CRUD create_pattern/get_pattern/list_patterns/delete_pattern (raise PermissionError для builtin → 403); PR#60: _BUILTIN_PATTERNS tuple (4 dicts) + seed_builtin_patterns(db)→int (идемпотентная по name+is_builtin, self-healing) + _now_iso() локальная копия (избегает circular import schemas.job↔db.models)
   - src/telesoft/api/auth.py — auth helpers (verify_credentials/login/logout/current_user/require_auth/ws_current_user)
   - src/telesoft/api/routers/auth.py — auth router (POST /api/auth/login, /logout, GET /me)
   - src/telesoft/api/routers/channels.py — channels router (GET/POST/GET-by-id/PATCH/DELETE under /api/channels, auth on whole router)
-  - src/telesoft/api/routers/jobs.py — jobs router (POST replace-link с compile_pattern PR#56 + parse_post_link→max_id PR#62 + auto-discovery через limit, POST preview-replace dry-run PR#56 + parse_post_link→max_id PR#62, GET /api/jobs, GET /api/jobs/{id}, GET /api/jobs/{id}/logs, POST /api/jobs/{id}/cancel, auth on whole router, no prefix)
+  - src/telesoft/api/routers/jobs.py — jobs router (POST replace-link с compile_pattern PR#56 + parse_post_link→max_id PR#62 + auto-discovery через limit, POST preview-replace dry-run PR#56 + parse_post_link→max_id PR#62, GET /api/jobs total=count_jobs PR#84, GET /api/jobs/{id}, GET /api/jobs/{id}/logs total=count_logs PR#84, POST /api/jobs/{id}/cancel, auth on whole router, no prefix)
   - src/telesoft/api/routers/patterns.py — PR#56: patterns router (GET/POST/DELETE under /api/patterns, auth on whole router, is_builtin=0 всегда на create, 403 на delete builtin, 422 на invalid regex)
   - src/telesoft/api/routers/ws.py — WebSocket router (WS /api/ws, ws_current_user auth via scope["session"], sender+receive loops)
   - src/telesoft/schemas/auth.py — Pydantic models (LoginRequest, AuthResponse)
@@ -28,7 +28,7 @@ key_files:
   - src/telesoft/__init__.py — package marker (empty)
   - src/telesoft/py.typed — PEP 561 marker (empty)
 dependencies: []
-last_updated: 2026-07-22 (PR#66)
+last_updated: 2026-07-22 (PR#84)
 ---
 
 # backend — src/telesoft/
@@ -58,8 +58,8 @@ src/telesoft/
 │   └── models/
 │       ├── __init__.py    # Реэкспорт CRUD функций (__all__ отсортирован по RUF022, PR#56: +PatternRow +create_pattern/get_pattern/list_patterns/delete_pattern; PR#60: +seed_builtin_patterns)
 │       ├── channel.py     # channels: telegram_id UNIQUE, title, username, is_active; CRUD + update whitelist
-│       ├── job.py         # edit_jobs: FK→channels CASCADE, status/total/edited/failed; CRUD + filters
-│       ├── log.py         # edit_logs: FK→edit_jobs CASCADE, message_id/old_text/success/error; CRUD + pagination
+│       ├── job.py         # edit_jobs: FK→channels CASCADE, status/total/edited/failed; CRUD + filters + count_jobs (PR#84 — COUNT(*) с теми же WHERE-фильтрами что list_jobs, без LIMIT/OFFSET, для реального total в пагинации)
+│       ├── log.py         # edit_logs: FK→edit_jobs CASCADE, message_id/old_text/success/error; CRUD + pagination + count_logs (PR#84 — COUNT(*) WHERE job_id=?, для реального total логов)
 │       └── pattern.py     # PR#56: link_patterns (id, name, pattern, description, is_builtin, created_at) + idx_link_patterns_name. CRUD: create_pattern (# noqa: PLR0913 — 6 args), get_pattern, list_patterns (ORDER BY id), delete_pattern (raise PermissionError для is_builtin=1 → router 403, return False если absent → 404). PR#60: _BUILTIN_PATTERNS tuple of dicts (4 built-in patterns: Telegram bot links, with groups, channel post links, generic URLs), seed_builtin_patterns(db)→int (идемпотентная: SELECT WHERE name=? AND is_builtin=1, если нет → create_pattern(is_builtin=1), возвращает count вставленных, self-healing если один удалён), _now_iso() локальная копия now_iso из schemas/job.py (избегает circular import schemas.job↔db.models)
 ├── api/          # HTTP API layer (auth helpers + routers)
 │   ├── __init__.py    # Пустой — package marker
@@ -68,7 +68,7 @@ src/telesoft/
 │       ├── __init__.py    # Пустой — package marker
 │       ├── auth.py        # APIRouter(prefix="/api/auth"): POST /login, POST /logout (auth), GET /me (auth)
 │       ├── channels.py    # APIRouter(prefix="/api/channels", dependencies=[Depends(require_auth)]): GET "" (list, ?active_only), POST "" (201/409), GET "/{id}" (200/404), PATCH "/{id}" (200/404/422), DELETE "/{id}" (204/404, FK CASCADE)
-│       ├── jobs.py        # APIRouter(tags=["jobs"], dependencies=[Depends(require_auth)]) БЕЗ prefix: POST /api/channels/{channel_id}/replace-link (PR#56: compile_pattern(pattern, mode, full_replace) → validate_pattern(compiled) → сохраняет **скомпилированный** regex в edit_jobs.pattern → runner.submit с limit; PR#62: parse_post_link(payload.post_link)→max_id, 422 на parse error, передаётся в runner.submit + get_last_messages; PR#64: payload.full_replace вместо keep_tail), POST /api/channels/{channel_id}/preview-replace (PR#56: compile → validate → get_last_messages(limit) → preview_replace(3) → PreviewResponse с compiled_pattern, dry-run без edit; PR#62: +parse_post_link→max_id; PR#64: payload.full_replace), GET /api/jobs (filters + pagination), GET /api/jobs/{id} (404), GET /api/jobs/{id}/logs (404 + pagination), POST /api/jobs/{id}/cancel (404/409 if terminal)
+│       ├── jobs.py        # APIRouter(tags=["jobs"], dependencies=[Depends(require_auth)]) БЕЗ prefix: POST /api/channels/{channel_id}/replace-link (PR#56: compile_pattern(pattern, mode, full_replace) → validate_pattern(compiled) → сохраняет **скомпилированный** regex в edit_jobs.pattern → runner.submit с limit; PR#62: parse_post_link(payload.post_link)→max_id, 422 на parse error, передаётся в runner.submit + get_last_messages; PR#64: payload.full_replace вместо keep_tail), POST /api/channels/{channel_id}/preview-replace (PR#56: compile → validate → get_last_messages(limit) → preview_replace(3) → PreviewResponse с compiled_pattern, dry-run без edit; PR#62: +parse_post_link→max_id; PR#64: payload.full_replace), GET /api/jobs (filters + pagination, PR#84: total=count_jobs — реальное matching count, не len(jobs)), GET /api/jobs/{id} (404), GET /api/jobs/{id}/logs (404 + pagination, PR#84: total=count_logs — реальное количество логов), POST /api/jobs/{id}/cancel (404/409 if terminal)
 │       ├── patterns.py    # PR#56: APIRouter(prefix="/api/patterns", tags=["patterns"], dependencies=[Depends(require_auth)]): GET "" (list all), POST "" (201, is_builtin=0 всегда, validate_pattern 422), DELETE "/{id}" (204, 403 если builtin via PermissionError, 404 если absent)
 │       └── ws.py          # APIRouter(tags=["ws"]) БЕЗ auth dependency: WS /api/ws — ws_current_user check (scope["session"]) → close(4001) if None; accept → bus.subscribe() → sender task (_forward_events: queue.get → send_json) + receive loop (_drain_client: receive_text до disconnect); cleanup on WebSocketDisconnect
 └── schemas/      # Pydantic request/response models
@@ -142,6 +142,7 @@ src/telesoft/
 - **Patterns router** (PR#56, `api/routers/patterns.py`) — `APIRouter(prefix="/api/patterns", tags=["patterns"], dependencies=[Depends(require_auth)])`: `GET ""` (list all), `POST ""` (201, `is_builtin=0` всегда, `validate_pattern` 422), `DELETE "/{id}"` (204, 403 если builtin via `PermissionError`, 404 если absent). Auth на весь роутер (PR#20 паттерн)
 - **`replace-link` endpoint compiled regex** (PR#56, `api/routers/jobs.py`) — `compile_pattern(payload.pattern, payload.mode, payload.full_replace)` → `validate_pattern(compiled)` → сохраняет **скомпилированный** regex в `edit_jobs.pattern` (НЕ raw пользовательский ввод — для transparency в логах, backward-incompatible для existing jobs, но jobs одноразовые). `ReplaceLinkRequest` +`mode: str = "advanced"` +`full_replace: bool = True` PR#64 (заменил `keep_tail: bool = False` PR#56; backward compat — default advanced + full_replace=True = текущее поведение, existing клиенты работают без изменений). **PR#62**: +`post_link: str` (обязательный) — `parse_post_link` → `max_id` для `get_last_messages`. Existing клиенты без `post_link` → 422 (backward-incompatible)
 - **`preview-replace` endpoint** (PR#56, `api/routers/jobs.py`) — `POST /api/channels/{channel_id}/preview-replace`: compile → validate → `get_last_messages(payload.limit, max_id)` PR#62 (+`parse_post_link(payload.post_link)→max_id`, 422 на parse error) → `preview_replace(3)` → `PreviewResponse` (включает `compiled_pattern`). `PreviewRequest.limit` контролирует fetch из Telegram (default 100), preview всегда берёт 3 (hardcoded в router, не из request — 3 пары достаточно, extra поле = over-engineering)
+- **`count_jobs`/`count_logs` для реального total** (PR#84, `db/models/job.py` + `db/models/log.py`) — `count_jobs(db, channel_id=None, status=None) -> int` и `count_logs(db, job_id) -> int` выполняют `SELECT COUNT(*) AS cnt FROM ... WHERE ...` (БЕЗ LIMIT/OFFSET, БЕЗ ORDER BY). `list_jobs_endpoint`/`get_job_logs_endpoint` вызывают их для `total` в `JobListResponse`/`LogListResponse` (вместо `len(jobs)`/`len(logs)` — размера текущей страницы). Fix бага: `total` возвращал размер страницы, блокируя пагинацию (`Math.ceil(total/pageSize)` всегда давало 1). `count_jobs` использует те же WHERE-фильтры (`channel_id`, `status`) что `list_jobs` — дублирование WHERE-логики (DRY-vs-KISS, для 2 фильтров приемлемо). `int(row["cnt"])` defensive cast (SQLite может вернуть int/bytes/None)
 
 ## Dependencies
 
