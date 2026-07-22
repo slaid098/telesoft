@@ -9,11 +9,11 @@ key_files:
   - web/Dockerfile.web — SvelteKit frontend image (adapter-node, curl for healthcheck)
   - nginx.conf — reverse proxy config (api:8000 + web:3000 → port 80)
   - .env.example — all env vars documented + production deployment notes (PR#62: MAX_PROBE_ID удалён)
-  - README.md — project overview, getting started, env vars table, bot setup
+  - README.md — project overview на русском (15 секций: описание, архитектура Mermaid, возможности, стек, env vars, настройка бота, тесты, структура, деплой)
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-22 (PR#86)
+last_updated: 2026-07-22 (PR#88)
 ---
 
 # telesoft — Project Map
@@ -76,7 +76,7 @@ telesoft/
 ├── web/Dockerfile.web # Frontend image — см. docker.md
 ├── nginx.conf         # nginx reverse proxy config — см. docker.md
 ├── .env.example       # Все env-переменные с placeholder + production notes
-├── README.md          # Overview, getting started, env vars, bot setup
+├── README.md          # Overview на русском, env vars, bot setup, тесты, деплой
 ├── .pre-commit-config.yaml  # ruff + mypy hooks — см. ci.md
 ├── .dockerignore
 ├── .editorconfig
@@ -131,6 +131,7 @@ telesoft/
 - [PR#64 — preserve formatting entities + preview context + full/partial radio](../decisions/2026-07-21-pr-64-formatting-preview-radio.md)
 - [PR#84 — jobs pagination + count_jobs/count_logs total fix](../decisions/2026-07-22-pr-84-jobs-pagination.md)
 - [PR#86 — link_preview configurable + preview-confirm-run workflow](../decisions/2026-07-22-pr-86-preview-ux.md)
+- [PR#88 — rewrite README in Russian](../decisions/2026-07-22-pr-88-rewrite-readme-ru.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -156,3 +157,4 @@ telesoft/
 - [PR#64 — preserve formatting entities + preview context + full/partial radio](../handoff/pr-64-formatting-preview-radio.md)
 - [PR#84 — jobs pagination + count_jobs/count_logs total fix](../handoff/pr-84-jobs-pagination.md)
 - [PR#86 — link_preview configurable + preview-confirm-run workflow](../handoff/pr-86-preview-ux.md)
+- [PR#88 — rewrite README in Russian](../handoff/pr-88-rewrite-readme-ru.md)
