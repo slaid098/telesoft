@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 66
 issue: 65
 branch: fix/replace/entity-crossing-boundary
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: handle entity crossing boundary in _adjust_entity_offsets
+# Handoff — PR 66: handle entity crossing boundary in _adjust_entity_offsets
 
 ## Что сделано
 

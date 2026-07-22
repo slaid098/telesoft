@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 66
 issue: 65
 status: Accepted
 created: 2026-07-22
 supersedes: []
 ---
 
-# ADR — PR <PR-NUMBER>: handle entity crossing boundary in _adjust_entity_offsets
+# ADR — PR 66: handle entity crossing boundary in _adjust_entity_offsets
 
 ## Статус
 
