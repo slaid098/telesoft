@@ -493,6 +493,29 @@ def test_adjust_entity_offsets_crossing_boundary_match_starts_inside_entity() ->
     assert bold.length == 4
 
 
+def test_adjust_entity_offsets_case3b_short_replacement_preserves_entity() -> None:
+    """Case 3b with shorter replacement keeps entity with positive length.
+
+    text: "aBOLD_LINK_REST_extra" (22 chars)
+    entity: Bold(offset=1, length=10) covers "BOLD_LINK_" [1, 11]
+    match: "BOLD_LINK_REST" at [1, 15] (14 chars) starts inside, ends outside
+    new_link: "X" (1 char) — shorter than match
+    Old buggy formula (e_length += len(new_link) - (m_end - m_start))
+    produced a negative length → defensive validation dropped the entity.
+    New formula (e_length = (m_start + len(new_link)) - e_offset)
+    yields a positive length → entity survives covering "X".
+    """
+    text = "aBOLD_LINK_REST_extra"
+    bold = MessageEntityBold(offset=1, length=10)
+    adjusted = _adjust_entity_offsets([bold], text, "BOLD_LINK_REST", "X")
+    assert len(adjusted) == 1
+    assert adjusted[0].offset == 1
+    assert adjusted[0].length == 1  # covers "X"
+    # new_text = "aX_extra" (8 chars), entity end = 1 + 1 = 2 ≤ 8 → valid
+    # Original not mutated
+    assert bold.offset == 1
+    assert bold.length == 10
+
 
 def test_adjust_entity_offsets_crossing_boundary_match_starts_outside_entity() -> None:
     """Match starts outside entity, ends inside → offset shifted to after replacement."""
