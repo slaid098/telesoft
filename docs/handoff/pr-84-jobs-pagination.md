@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 84
 issue: 83
 branch: feat/jobs/pagination
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: add pagination to jobs list
+# Handoff — PR 84: add pagination to jobs list
 
 ## Что сделано
 
@@ -102,8 +102,10 @@ created: 2026-07-22
    `+page.ts` limit/offset).
 3. `test(jobs): add pagination tests` — шаг 6 (backend + frontend
    тесты для count_jobs и pagination).
-4. `docs(handoff): set PR number` — заполнение `<PR-NUMBER>` placeholder
-   после создания PR.
+4. `docs(handoff): add handoff and ADR for jobs pagination` —
+   handoff + ADR с placeholder PR-NUMBER.
+5. `docs(handoff): set PR number` — заполнение `<PR-NUMBER>` placeholder
+   после создания PR (#84).
 
 ## Почему
 

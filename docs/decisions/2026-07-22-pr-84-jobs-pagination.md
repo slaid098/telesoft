@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: add pagination to jobs list
+# ADR — PR 84: add pagination to jobs list
 
 ## Статус
 
