@@ -8,7 +8,7 @@ Two public functions:
   template without knowing regex syntax.
 - :func:`compile_pattern` — orchestrator that selects the strategy based
   on ``mode`` (``"simple"``, ``"library"`` or ``"advanced"``) and optionally
-  appends ``.*`` to the pattern so :func:`re.sub` replaces the whole link
+  appends ``\\S*`` to the pattern so :func:`re.sub` replaces the whole link
   (``full_replace=True``) or leaves the tail in place
   (``full_replace=False``).
 """
@@ -39,9 +39,10 @@ def compile_pattern(raw: str, mode: str, full_replace: bool = True) -> str:
     - ``mode="simple"`` → :func:`compile_simple` (``*`` → ``.*``)
     - ``mode="library"`` or ``mode="advanced"`` → *raw* is treated as a
       ready regex and returned as-is
-    - ``full_replace=True`` → append ``.*`` to the compiled pattern if it
+    - ``full_replace=True`` → append ``\\S*`` to the compiled pattern if it
       does not already end with ``.*`` or ``\\S+`` so :func:`re.sub` replaces
-      the whole link (default, "Полная замена")
+      the whole link (default, "Полная замена") without swallowing trailing
+      whitespace or text after the URL
     - ``full_replace=False`` → return the compiled pattern as-is so only
       the matched prefix is replaced and the tail stays ("Частичная")
 
@@ -56,5 +57,5 @@ def compile_pattern(raw: str, mode: str, full_replace: bool = True) -> str:
         msg = f"unknown pattern mode: {mode!r}"
         raise ValueError(msg)
     if full_replace and not compiled.endswith(".*") and not compiled.endswith(r"\S+"):
-        compiled += ".*"
+        compiled += r"\S*"
     return compiled
