@@ -144,22 +144,24 @@ describe("ReplaceLinkForm", () => {
     await fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(replaceLink).toHaveBeenCalledWith(1, {
+      expect(previewReplace).toHaveBeenCalledWith(1, {
         pattern: "https://t.me/bot?start=flow-*",
         new_link: "https://new.example.com",
         post_link: "https://t.me/test/140",
-        limit: 100,
         mode: "simple",
         full_replace: true,
+        limit: 100,
+        link_preview: false,
       });
-    });
-    await waitFor(() => {
-      expect(mockGoto).toHaveBeenCalledWith("/jobs/5");
     });
   });
 
   it("sends full_replace=false when partial radio is selected", async () => {
-    vi.mocked(replaceLink).mockResolvedValue({ job_id: 7 });
+    vi.mocked(previewReplace).mockResolvedValue({
+      previews: [],
+      total_matches: 0,
+      compiled_pattern: "x",
+    });
     render(ReplaceLinkForm, { props: { channelId: 1 } });
 
     await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
@@ -179,7 +181,7 @@ describe("ReplaceLinkForm", () => {
     await fireEvent.submit(form);
 
     await waitFor(() => {
-      expect(replaceLink).toHaveBeenCalledWith(
+      expect(previewReplace).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
           full_replace: false,
@@ -205,7 +207,7 @@ describe("ReplaceLinkForm", () => {
     expect(screen.getByLabelText(/Паттерн \(регулярное выражение\)/i)).toBeTruthy();
   });
 
-  it("preview button calls previewReplace and opens modal", async () => {
+  it("Запустить button triggers previewReplace (preview-confirm-run flow)", async () => {
     const previewResp: PreviewResponse = {
       previews: [
         {
@@ -233,11 +235,9 @@ describe("ReplaceLinkForm", () => {
       target: { value: "https://t.me/test/140" },
     });
 
-    const previewCheckbox = screen.getByLabelText(/Показать предпросмотр/i);
-    await fireEvent.click(previewCheckbox);
-
-    const previewBtn = screen.getByRole("button", { name: /Предпросмотр/i });
-    await fireEvent.click(previewBtn);
+    const form = screen.getByRole("button", { name: /Запустить/i }).closest("form");
+    if (!form) throw new Error("form not found");
+    await fireEvent.submit(form);
 
     await waitFor(() => {
       expect(previewReplace).toHaveBeenCalledWith(1, {
@@ -247,10 +247,43 @@ describe("ReplaceLinkForm", () => {
         mode: "simple",
         full_replace: true,
         limit: 100,
+        link_preview: false,
       });
     });
     await waitFor(() => {
       expect(onPreview).toHaveBeenCalledWith(previewResp);
+    });
+  });
+
+  it("link_preview checkbox passes link_preview=true to previewReplace", async () => {
+    vi.mocked(previewReplace).mockResolvedValue({
+      previews: [],
+      total_matches: 0,
+      compiled_pattern: "x",
+    });
+    render(ReplaceLinkForm, { props: { channelId: 1 } });
+
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
+      target: { value: "https://new.example.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
+    });
+    const linkPreviewCheckbox = screen.getByLabelText(/Включить превью ссылки/i);
+    await fireEvent.click(linkPreviewCheckbox);
+
+    const form = screen.getByRole("button", { name: /Запустить/i }).closest("form");
+    if (!form) throw new Error("form not found");
+    await fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(previewReplace).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ link_preview: true }),
+      );
     });
   });
 
@@ -282,6 +315,7 @@ describe("ReplaceLinkForm", () => {
       limit: 100,
       mode: "simple",
       full_replace: true,
+      link_preview: false,
     });
   });
 
@@ -311,6 +345,31 @@ describe("ReplaceLinkForm", () => {
 
     await new Promise((r) => setTimeout(r, 50));
     expect(replaceLink).toHaveBeenCalledTimes(1);
+  });
+
+  it("runNonce passes link_preview=true when checkbox checked", async () => {
+    vi.mocked(replaceLink).mockResolvedValue({ job_id: 13 });
+    const { rerender } = render(ReplaceLinkForm, {
+      props: { channelId: 1, runNonce: 0 },
+    });
+
+    await fireEvent.input(screen.getByLabelText(/Найти ссылки/i), {
+      target: { value: "https://t.me/bot?start=flow-*" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Заменить на/i), {
+      target: { value: "https://new.example.com" },
+    });
+    await fireEvent.input(screen.getByLabelText(/Ссылка на последний пост/i), {
+      target: { value: "https://t.me/test/140" },
+    });
+    const linkPreviewCheckbox = screen.getByLabelText(/Включить превью ссылки/i);
+    await fireEvent.click(linkPreviewCheckbox);
+
+    rerender({ channelId: 1, runNonce: 1 });
+
+    await waitFor(() => {
+      expect(replaceLink).toHaveBeenCalledWith(1, expect.objectContaining({ link_preview: true }));
+    });
   });
 });
 

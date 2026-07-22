@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import aiosqlite
 import pytest
@@ -204,6 +204,55 @@ def test_replace_link_default_limit(
     mock_telethon_get_last_messages.assert_awaited_once()
     called_limit = mock_telethon_get_last_messages.await_args.args[1]
     assert called_limit == 100
+
+
+def test_replace_link_link_preview_true_reaches_runner(
+    authed_client: TestClient,
+    mock_runner: JobRunner,
+    mock_telethon_get_last_messages: AsyncMock,
+) -> None:
+    """``link_preview: true`` in the POST body is forwarded to ``runner.submit``."""
+    channel = _create_channel(authed_client)
+    mock_telethon_get_last_messages.return_value = []
+    submit_spy = MagicMock(wraps=mock_runner.submit)
+    mock_runner.submit = submit_spy  # type: ignore[method-assign]
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/replace-link",
+        json={
+            "pattern": r"https://old\.example\.com",
+            "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
+            "limit": 100,
+            "link_preview": True,
+        },
+    )
+    assert response.status_code == 201, response.text
+    submit_spy.assert_called_once()
+    assert submit_spy.call_args.kwargs["link_preview"] is True
+
+
+def test_replace_link_link_preview_defaults_to_false(
+    authed_client: TestClient,
+    mock_runner: JobRunner,
+    mock_telethon_get_last_messages: AsyncMock,
+) -> None:
+    """Omitting ``link_preview`` defaults to ``False`` in ``runner.submit``."""
+    channel = _create_channel(authed_client)
+    mock_telethon_get_last_messages.return_value = []
+    submit_spy = MagicMock(wraps=mock_runner.submit)
+    mock_runner.submit = submit_spy  # type: ignore[method-assign]
+    response = authed_client.post(
+        f"/api/channels/{channel['id']}/replace-link",
+        json={
+            "pattern": r"https://old\.example\.com",
+            "new_link": "https://new.example.com",
+            "post_link": "https://t.me/test/140",
+            "limit": 100,
+        },
+    )
+    assert response.status_code == 201, response.text
+    submit_spy.assert_called_once()
+    assert submit_spy.call_args.kwargs["link_preview"] is False
 
 
 def test_replace_link_requires_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
