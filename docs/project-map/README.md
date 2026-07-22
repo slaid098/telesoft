@@ -9,11 +9,11 @@ key_files:
   - web/Dockerfile.web — SvelteKit frontend image (adapter-node, curl for healthcheck)
   - nginx.conf — reverse proxy config (api:8000 + web:3000 → port 80)
   - .env.example — all env vars documented + production deployment notes (PR#62: MAX_PROBE_ID удалён)
-  - README.md — project overview, getting started, env vars table, bot setup
+  - README.md — project overview на русском (15 секций: описание, архитектура Mermaid, возможности, стек, env vars, настройка бота, тесты, структура, деплой)
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-22 (PR#86)
+last_updated: 2026-07-22 (PR#87)
 ---
 
 # telesoft — Project Map
@@ -76,7 +76,7 @@ telesoft/
 ├── web/Dockerfile.web # Frontend image — см. docker.md
 ├── nginx.conf         # nginx reverse proxy config — см. docker.md
 ├── .env.example       # Все env-переменные с placeholder + production notes
-├── README.md          # Overview, getting started, env vars, bot setup
+├── README.md          # Overview на русском, env vars, bot setup, тесты, деплой
 ├── .pre-commit-config.yaml  # ruff + mypy hooks — см. ci.md
 ├── .dockerignore
 ├── .editorconfig
