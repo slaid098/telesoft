@@ -13,7 +13,7 @@ key_files:
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-21 (PR#64)
+last_updated: 2026-07-22 (PR#66)
 ---
 
 # telesoft — Project Map
@@ -85,7 +85,7 @@ telesoft/
 
 ## Module index
 
-- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,pattern_compiler,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,patterns,ws}}, schemas/{auth,channel,job}; PR#62: telegram.py +parse_post_link, get_last_messages +max_id, _find_max_id удалён, config.py -max_probe_id, schemas/job.py +post_link, runner.py +max_id; PR#64: telegram.py edit_message +formatting_entities, link_replacer.py +_adjust_entity_offsets +50-char preview context, pattern_compiler.py apply_keep_tail→full_replace, schemas/job.py keep_tail→full_replace)
+- [backend.md](backend.md) — `src/telesoft/` (FastAPI backend: main, config, core/{telegram,url_parser,pattern_compiler,link_replacer,events,runner}, db/, api/{auth,routers/{auth,channels,jobs,patterns,ws}}, schemas/{auth,channel,job}; PR#62: telegram.py +parse_post_link, get_last_messages +max_id, _find_max_id удалён, config.py -max_probe_id, schemas/job.py +post_link, runner.py +max_id; PR#64: telegram.py edit_message +formatting_entities, link_replacer.py +_adjust_entity_offsets +50-char preview context, pattern_compiler.py apply_keep_tail→full_replace, schemas/job.py keep_tail→full_replace; PR#66: link_replacer.py _adjust_entity_offsets crossing boundary case 3a/3b + defensive validation drop invalid bounds)
 - [frontend.md](frontend.md) — `web/` (SvelteKit 2 + Svelte 5 runes + TS + Tailwind + Biome + Vitest + Knip; lib/{api,ws,types}.ts + components/{ChannelForm,ReplaceLinkForm,PreviewModal,PatternLibrary}, routes/{+layout,+page,login,channels,jobs}, tests; PR#62: ReplaceLinkForm +post_link field, types.ts +post_link; PR#64: ReplaceLinkForm keep_tail checkbox→radio "Полная"/"Частичная", types.ts keep_tail→full_replace)
 - [docker.md](docker.md) — `docker-compose.yml` (3 services: api + web + nginx), `Dockerfile.api`, `Dockerfile.nginx`, `web/Dockerfile.web`, `nginx.conf`, `.env.example`, `.dockerignore`
 - [ci.md](ci.md) — `.github/`, `.pre-commit-config.yaml`

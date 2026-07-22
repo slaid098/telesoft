@@ -71,14 +71,21 @@ def _adjust_entity_offsets(
       cumulative delta
     - matches strictly inside the entity → grow/shrink ``entity.length`` by
       the per-match delta
-    - matches crossing the entity boundary → leave the entity untouched
-      (edge case; rare and ambiguous)
+    - match starts outside, ends inside entity → shift ``entity.offset`` to
+      after the replacement and shrink ``entity.length`` accordingly
+    - match starts inside, ends outside entity → extend/shrink
+      ``entity.length`` by the per-match delta
+
+    After all matches are processed, each entity is validated against the
+    post-substitution text length: entities with negative offset, non-positive
+    length, or ``offset + length > len(new_text)`` are dropped (not appended).
 
     The original entities are NOT mutated — each returned entry is a fresh
     copy (``copy.copy``) with updated ``offset``/``length``. When *pattern*
     does not match *text*, *entities* is returned as-is (still copied).
     """
     matches = list(re.finditer(pattern, text))
+    new_text = re.sub(pattern, new_link, text)
     adjusted: list[Any] = []
     for entity in entities:
         new_entity = copy.copy(entity)
@@ -92,8 +99,20 @@ def _adjust_entity_offsets(
                 shift += len(new_link) - (m_end - m_start)
             elif m_start >= e_offset and m_end <= e_end:
                 e_length += len(new_link) - (m_end - m_start)
+            elif m_start < e_offset and m_end > e_offset and m_end <= e_end:
+                new_offset = m_start + len(new_link)
+                e_length -= new_offset - e_offset
+                e_offset = new_offset
+            elif m_start >= e_offset and m_start < e_end and m_end > e_end:
+                e_length += len(new_link) - (m_end - m_start)
         new_entity.offset = e_offset + shift
         new_entity.length = e_length
+        if (
+            new_entity.offset < 0
+            or new_entity.length <= 0
+            or new_entity.offset + new_entity.length > len(new_text)
+        ):
+            continue
         adjusted.append(new_entity)
     return adjusted
 
