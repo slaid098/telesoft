@@ -34,6 +34,7 @@ class ReplaceLinkRequest(BaseModel):
     limit: int = Field(default=100, ge=1, le=1000)
     mode: str = "advanced"
     full_replace: bool = True
+    link_preview: bool = False
 
 
 class PreviewRequest(BaseModel):

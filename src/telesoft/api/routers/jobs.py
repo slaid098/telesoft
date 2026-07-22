@@ -143,6 +143,7 @@ async def replace_link_endpoint(
         pattern=compiled,
         new_link=payload.new_link,
         max_id=max_id,
+        link_preview=payload.link_preview,
     )
     return {"job_id": int(row["id"]), "status": "pending"}
 

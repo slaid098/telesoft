@@ -109,6 +109,7 @@ async def edit_message(
     message_id: int,
     text: str,
     formatting_entities: list[Any] | None = None,
+    link_preview: bool = False,
 ) -> Message:
     """Edit a single message text; retries 3x on FloodWaitError.
 
@@ -116,6 +117,11 @@ async def edit_message(
     ``client.edit_message(formatting_entities=...)`` so bold/italic/etc
     entities survive the text substitution — see
     :func:`telesoft.core.link_replacer._adjust_entity_offsets`.
+
+    *link_preview* is forwarded to ``client.edit_message(link_preview=...)``
+    so the caller controls whether Telegram renders a link preview card
+    for the edited message. Telegram's default is ``True``; passing
+    ``False`` (the backend default) suppresses the preview.
     """
     client = await start_client()
     max_retries = 3
@@ -126,6 +132,7 @@ async def edit_message(
                 message_id,
                 text=text,
                 formatting_entities=formatting_entities,
+                link_preview=link_preview,
             )
         except FloodWaitError as exc:
             if attempt + 1 >= max_retries:
@@ -134,7 +141,12 @@ async def edit_message(
     raise RuntimeError("unreachable")
 
 
-async def edit_message_entities(chat_id: int, message: Any, entities: list[Any]) -> Any:
+async def edit_message_entities(
+    chat_id: int,
+    message: Any,
+    entities: list[Any],
+    link_preview: bool = False,
+) -> Any:
     """Edit message entities via high-level ``client.edit_message``.
 
     Used when the URL lives inside a ``MessageEntityTextUrl`` entity (formatted
@@ -143,6 +155,9 @@ async def edit_message_entities(chat_id: int, message: Any, entities: list[Any])
     passing ``formatting_entities`` lets Telethon resolve the channel peer
     itself, eliminating the per-edit ``_get_channel_input`` / ``get_entity``
     round-trip the raw ``MessagesEditMessageRequest`` path required.
+
+    *link_preview* is forwarded to ``client.edit_message(link_preview=...)`` —
+    see :func:`edit_message` for the rationale.
     """
     client = await start_client()
     max_retries = 3
@@ -153,6 +168,7 @@ async def edit_message_entities(chat_id: int, message: Any, entities: list[Any])
                 message.id,
                 text=message.message or "",
                 formatting_entities=entities,
+                link_preview=link_preview,
             )
         except FloodWaitError as exc:
             if attempt + 1 >= max_retries:

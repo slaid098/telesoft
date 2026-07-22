@@ -102,6 +102,7 @@ class JobRunner:
         pattern: str,
         new_link: str,
         max_id: int = 0,
+        link_preview: bool = False,
     ) -> None:
         """Schedule a background task for *job_id* (must already exist in the DB)."""
         if self._semaphore is None:
@@ -111,7 +112,9 @@ class JobRunner:
             existing.cancel()
         self._cancelled.discard(job_id)
         assert self._semaphore is not None
-        task = asyncio.create_task(self._run_job(job_id, chat_id, limit, pattern, new_link, max_id))
+        task = asyncio.create_task(
+            self._run_job(job_id, chat_id, limit, pattern, new_link, max_id, link_preview)
+        )
         self._tasks[job_id] = task
         logger.bind(job_id=job_id, max_concurrency=self._max_concurrency).info(
             "replace-link job submitted to runner"
@@ -136,6 +139,7 @@ class JobRunner:
         pattern: str,
         new_link: str,
         max_id: int = 0,
+        link_preview: bool = False,
     ) -> None:
         """Wrap the replace-link work with semaphore + status transitions."""
         sem = self._semaphore
@@ -163,7 +167,9 @@ class JobRunner:
                     if job_id in self._cancelled:
                         raise asyncio.CancelledError  # noqa: TRY301
                     message_id = int(message.id)
-                    result = await replace_link_in_post(chat_id, message, pattern, new_link)
+                    result = await replace_link_in_post(
+                        chat_id, message, pattern, new_link, link_preview=link_preview
+                    )
                     if result.get("success"):
                         if result.get("edited"):
                             edited += 1
