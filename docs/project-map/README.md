@@ -13,7 +13,7 @@ key_files:
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-22 (PR#87)
+last_updated: 2026-07-22 (PR#88)
 ---
 
 # telesoft — Project Map
@@ -131,6 +131,7 @@ telesoft/
 - [PR#64 — preserve formatting entities + preview context + full/partial radio](../decisions/2026-07-21-pr-64-formatting-preview-radio.md)
 - [PR#84 — jobs pagination + count_jobs/count_logs total fix](../decisions/2026-07-22-pr-84-jobs-pagination.md)
 - [PR#86 — link_preview configurable + preview-confirm-run workflow](../decisions/2026-07-22-pr-86-preview-ux.md)
+- [PR#88 — rewrite README in Russian](../decisions/2026-07-22-pr-88-rewrite-readme-ru.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -156,3 +157,4 @@ telesoft/
 - [PR#64 — preserve formatting entities + preview context + full/partial radio](../handoff/pr-64-formatting-preview-radio.md)
 - [PR#84 — jobs pagination + count_jobs/count_logs total fix](../handoff/pr-84-jobs-pagination.md)
 - [PR#86 — link_preview configurable + preview-confirm-run workflow](../handoff/pr-86-preview-ux.md)
+- [PR#88 — rewrite README in Russian](../handoff/pr-88-rewrite-readme-ru.md)
