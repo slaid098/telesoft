@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: replace sidebar with top navigation bar
+# ADR — PR 74: replace sidebar with top navigation bar
 
 ## Статус
 

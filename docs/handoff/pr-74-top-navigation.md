@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 74
 issue: 73
 branch: feat/web/top-navigation
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: replace sidebar with top navigation bar
+# Handoff — PR 74: replace sidebar with top navigation bar
 
 ## Что сделано
 
