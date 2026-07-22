@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 82
 issue: 81
 branch: feat/web/unified-sticky-nav
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: unified sticky top navigation on all devices
+# Handoff — PR 82: unified sticky top navigation on all devices
 
 ## Что сделано
 

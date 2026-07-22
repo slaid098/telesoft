@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: unified sticky top navigation on all devices
+# ADR — PR 82: unified sticky top navigation on all devices
 
 ## Статус
 
