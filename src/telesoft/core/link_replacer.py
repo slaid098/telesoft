@@ -22,6 +22,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from loguru import logger
+from telethon.helpers import add_surrogate
 
 from telesoft.core import telegram as telegram_module
 
@@ -63,35 +64,47 @@ def _adjust_entity_offsets(
 ) -> list[Any]:
     """Return copies of *entities* with adjusted offset/length after substitution.
 
+    Telegram ``MessageEntity*`` ``offset``/``length`` are **UTF-16 code units**
+    (with surrogate pairs for non-BMP characters like emoji), NOT Python
+    code-point indices. To keep the math consistent, the function works
+    internally on a surrogate-encoded copy of *text* (via
+    :func:`telethon.helpers.add_surrogate`): regex offsets, lengths and the
+    defensive validation are all computed in UTF-16 code units. The returned
+    entities keep their UTF-16 offsets (as Telegram expects).
+
     For every match of *pattern* in *text* the replacement swaps ``len(match)``
-    characters for ``len(new_link)`` characters, producing a ``delta`` of
-    ``len(new_link) - len(match)``. Each entity is then adjusted:
+    characters for ``new_link_len`` characters (UTF-16 lengths), producing a
+    ``delta`` of ``new_link_len - len(match)``. Each entity is then adjusted:
 
     - matches strictly before the entity → shift ``entity.offset`` by the
       cumulative delta
     - matches strictly inside the entity → grow/shrink ``entity.length`` by
       the per-match delta
     - match starts outside, ends inside entity (case 3a) → shift
-      ``entity.offset`` to ``m_start + len(new_link)`` (start of the
+      ``entity.offset`` to ``m_start + new_link_len`` (start of the
       replacement in the post-substitution text) and set ``entity.length``
       to ``e_end - m_end`` (the surviving tail of the entity, from the end
       of the match to the original end of the entity)
     - match starts inside, ends outside entity (case 3b) → set
-      ``entity.length`` to ``(m_start + len(new_link)) - e_offset`` (the
+      ``entity.length`` to ``(m_start + new_link_len) - e_offset`` (the
       entity now covers everything from its original start up to the end of
       the replacement). A shorter replacement yields a shorter but still
       positive length, preserving the entity instead of dropping it.
 
     After all matches are processed, each entity is validated against the
-    post-substitution text length: entities with negative offset, non-positive
-    length, or ``offset + length > len(new_text)`` are dropped (not appended).
+    post-substitution surrogate-encoded text length: entities with negative
+    offset, non-positive length, or ``offset + length > len(new_text_sur)``
+    are dropped (not appended).
 
     The original entities are NOT mutated — each returned entry is a fresh
     copy (``copy.copy``) with updated ``offset``/``length``. When *pattern*
     does not match *text*, *entities* is returned as-is (still copied).
     """
-    matches = list(re.finditer(pattern, text))
-    new_text = re.sub(pattern, new_link, text)
+    sur_text = add_surrogate(text)
+    sur_new_link = add_surrogate(new_link)
+    new_link_len = len(sur_new_link)
+    matches = list(re.finditer(pattern, sur_text))
+    new_text_sur = re.sub(pattern, sur_new_link, sur_text)
     adjusted: list[Any] = []
     for entity in entities:
         new_entity = copy.copy(entity)
@@ -102,21 +115,21 @@ def _adjust_entity_offsets(
         for m in matches:
             m_start, m_end = m.start(), m.end()
             if m_end <= e_offset:
-                shift += len(new_link) - (m_end - m_start)
+                shift += new_link_len - (m_end - m_start)
             elif m_start >= e_offset and m_end <= e_end:
-                e_length += len(new_link) - (m_end - m_start)
+                e_length += new_link_len - (m_end - m_start)
             elif m_start < e_offset and m_end > e_offset and m_end <= e_end:
-                new_offset = m_start + len(new_link)
+                new_offset = m_start + new_link_len
                 e_length = e_end - m_end
                 e_offset = new_offset
             elif m_start >= e_offset and m_start < e_end and m_end > e_end:
-                e_length = (m_start + len(new_link)) - e_offset
+                e_length = (m_start + new_link_len) - e_offset
         new_entity.offset = e_offset + shift
         new_entity.length = e_length
         if (
             new_entity.offset < 0
             or new_entity.length <= 0
-            or new_entity.offset + new_entity.length > len(new_text)
+            or new_entity.offset + new_entity.length > len(new_text_sur)
         ):
             continue
         adjusted.append(new_entity)
