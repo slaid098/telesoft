@@ -9,12 +9,18 @@ const { data, children } = $props();
 type NavItem = { href: string; label: string; icon: string };
 
 const navItems: NavItem[] = [
+  { href: "/", label: "Главная", icon: "🏠" },
   { href: "/channels", label: "Каналы", icon: "📁" },
   { href: "/jobs", label: "Задачи", icon: "⚙️" },
 ];
 
 const isLogin = $derived(page.url.pathname === "/login");
 const username = $derived(data?.user ?? null);
+
+function isActive(item: NavItem): boolean {
+  const pathname = page.url.pathname;
+  return item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+}
 
 async function handleLogout() {
   try {
@@ -41,7 +47,7 @@ async function handleLogout() {
               <a
                 href={item.href}
                 class="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors
-                  {page.url.pathname.startsWith(item.href)
+                  {isActive(item)
                   ? "bg-brand-600 text-white"
                   : "text-slate-300 hover:bg-slate-800 hover:text-white"}"
               >
@@ -72,14 +78,14 @@ async function handleLogout() {
       </div>
 
       <nav
-        class="grid grid-cols-2 border-t border-slate-800 bg-slate-900 sm:hidden"
+        class="grid grid-cols-3 border-t border-slate-800 bg-slate-900 sm:hidden"
         aria-label="Мобильная навигация"
       >
         {#each navItems as item (item.href)}
           <a
             href={item.href}
             class="flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors
-              {page.url.pathname.startsWith(item.href)
+              {isActive(item)
               ? "text-brand-500"
               : "text-slate-400 hover:text-slate-200"}"
           >
