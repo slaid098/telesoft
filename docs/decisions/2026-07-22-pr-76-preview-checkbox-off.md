@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: preview checkbox off by default
+# ADR — PR 76: preview checkbox off by default
 
 ## Статус
 

@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 76
 issue: 75
 branch: feat/web/preview-checkbox-off
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: preview checkbox off by default
+# Handoff — PR 76: preview checkbox off by default
 
 ## Что сделано
 
