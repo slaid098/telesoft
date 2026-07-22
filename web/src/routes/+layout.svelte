@@ -9,7 +9,6 @@ const { data, children } = $props();
 type NavItem = { href: string; label: string; icon: string };
 
 const navItems: NavItem[] = [
-  { href: "/", label: "Главная", icon: "🏠" },
   { href: "/channels", label: "Каналы", icon: "📁" },
   { href: "/jobs", label: "Задачи", icon: "⚙️" },
 ];
@@ -18,8 +17,7 @@ const isLogin = $derived(page.url.pathname === "/login");
 const username = $derived(data?.user ?? null);
 
 function isActive(item: NavItem): boolean {
-  const pathname = page.url.pathname;
-  return item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+  return page.url.pathname.startsWith(item.href);
 }
 
 async function handleLogout() {
@@ -41,7 +39,7 @@ async function handleLogout() {
         class="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 sm:px-6"
       >
         <div class="flex items-center gap-6">
-          <a href="/" class="text-lg font-semibold text-white">telesoft</a>
+          <a href="/channels" class="text-lg font-semibold text-white">telesoft</a>
           <nav class="hidden space-x-1 sm:flex">
             {#each navItems as item (item.href)}
               <a
@@ -78,7 +76,7 @@ async function handleLogout() {
       </div>
 
       <nav
-        class="grid grid-cols-3 border-t border-slate-800 bg-slate-900 sm:hidden"
+        class="grid grid-cols-2 border-t border-slate-800 bg-slate-900 sm:hidden"
         aria-label="Мобильная навигация"
       >
         {#each navItems as item (item.href)}
