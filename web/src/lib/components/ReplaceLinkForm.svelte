@@ -28,6 +28,7 @@ let fullReplace = $state(true);
 let error = $state<string | null>(null);
 let submitting = $state(false);
 let previewing = $state(false);
+let showPreview = $state(false);
 
 let patterns = $state<PatternListResponse | null>(null);
 let selectedPatternId = $state<string>("");
@@ -328,14 +329,24 @@ async function handleSubmit(event: Event) {
   {/if}
 
   <div class="flex items-center justify-end gap-2">
-    <button
-      type="button"
-      onclick={handlePreview}
-      disabled={!canSubmit}
-      class="rounded-md border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {previewing ? "Предпросмотр…" : "Предпросмотр"}
-    </button>
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input
+        type="checkbox"
+        bind:checked={showPreview}
+        class="border-slate-700 bg-slate-800"
+      />
+      Показать предпросмотр
+    </label>
+    {#if showPreview}
+      <button
+        type="button"
+        onclick={handlePreview}
+        disabled={!canSubmit}
+        class="rounded-md border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {previewing ? "Предпросмотр…" : "Предпросмотр"}
+      </button>
+    {/if}
     <button
       type="submit"
       disabled={!canSubmit}
