@@ -233,6 +233,9 @@ describe("ReplaceLinkForm", () => {
       target: { value: "https://t.me/test/140" },
     });
 
+    const previewCheckbox = screen.getByLabelText(/Показать предпросмотр/i);
+    await fireEvent.click(previewCheckbox);
+
     const previewBtn = screen.getByRole("button", { name: /Предпросмотр/i });
     await fireEvent.click(previewBtn);
 
