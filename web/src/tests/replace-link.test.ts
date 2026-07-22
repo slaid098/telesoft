@@ -109,7 +109,7 @@ describe("ReplaceLinkForm", () => {
       target: { value: "https://t.me/test/140" },
     });
 
-    const limitInput = screen.getByLabelText(/Limit/i);
+    const limitInput = screen.getByLabelText(/Лимит/i);
     const button = screen.getByRole("button", { name: /Запустить/i }) as HTMLButtonElement;
 
     await fireEvent.input(limitInput, { target: { value: "0" } });
@@ -121,7 +121,7 @@ describe("ReplaceLinkForm", () => {
 
   it("opens form with default limit 100", () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
-    const limitInput = screen.getByLabelText(/Limit/i) as HTMLInputElement;
+    const limitInput = screen.getByLabelText(/Лимит/i) as HTMLInputElement;
     expect(limitInput.value).toBe("100");
   });
 
@@ -200,9 +200,9 @@ describe("ReplaceLinkForm", () => {
 
   it("switches to Advanced mode", async () => {
     render(ReplaceLinkForm, { props: { channelId: 1 } });
-    const advancedTab = screen.getByRole("tab", { name: /Advanced/i });
+    const advancedTab = screen.getByRole("tab", { name: /Расширенный/i });
     await fireEvent.click(advancedTab);
-    expect(screen.getByLabelText(/Pattern \(raw regex\)/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Паттерн \(регулярное выражение\)/i)).toBeTruthy();
   });
 
   it("preview button calls previewReplace and opens modal", async () => {
@@ -342,7 +342,7 @@ describe("PatternLibrary", () => {
     await waitFor(() => {
       expect(screen.getByText("Bot start")).toBeTruthy();
       expect(screen.getByText("Custom")).toBeTruthy();
-      expect(screen.getByText("built-in")).toBeTruthy();
+      expect(screen.getByText("встроенный")).toBeTruthy();
     });
     cleanup();
   });
