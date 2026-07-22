@@ -1,4 +1,4 @@
-# ADR — PR <PR-NUMBER>: UTF-16 code units for entity offset math
+# ADR — PR 78: UTF-16 code units for entity offset math
 
 ## Статус
 

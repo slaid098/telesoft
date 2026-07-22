@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 78
 issue: 77
 branch: fix/replace/utf16-entity-offsets
 status: ready
 created: 2026-07-22
 ---
 
-# Handoff — PR <PR-NUMBER>: UTF-16 code units for entity offset math + case 5
+# Handoff — PR 78: UTF-16 code units for entity offset math + case 5
 
 ## Что сделано
 
