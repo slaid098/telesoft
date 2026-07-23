@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/svelte";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGet, mockPost } = vi.hoisted(() => ({
+const { mockGet, mockPost, mockCancelJob } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockPost: vi.fn(),
+  mockCancelJob: vi.fn(),
 }));
 
 const onMessageHandlers: Set<(msg: { type: string; data: unknown }) => void> = new Set();
@@ -25,6 +26,7 @@ vi.mock("../lib/api", () => ({
       this.detail = detail;
     }
   },
+  cancelJob: mockCancelJob,
 }));
 
 vi.mock("$app/navigation", () => ({ goto: vi.fn() }));
@@ -46,6 +48,7 @@ vi.mock("../lib/ws", () => ({
   },
 }));
 
+import { ApiError, cancelJob } from "../lib/api";
 import type { Channel, Job, Log } from "../lib/types";
 import JobsPage from "../routes/jobs/+page.svelte";
 import JobDetailPage from "../routes/jobs/[id]/+page.svelte";
@@ -100,6 +103,7 @@ function emitWsEvent(type: string, data: Record<string, unknown>): void {
 beforeEach(() => {
   mockGet.mockReset();
   mockPost.mockReset();
+  mockCancelJob.mockReset();
   onMessageHandlers.clear();
 });
 
@@ -115,8 +119,8 @@ describe("Job detail page", () => {
     expect(screen.getByText("100")).toBeTruthy();
   });
 
-  it("calls POST /api/jobs/{id}/cancel when Cancel button is clicked", async () => {
-    mockPost.mockResolvedValue({ job_id: 1, status: "cancelled" });
+  it("calls cancelJob when Cancel button is clicked on detail page", async () => {
+    mockCancelJob.mockResolvedValue(undefined);
     mockGet.mockResolvedValue(makeJob({ status: "cancelled" }));
 
     const job = makeJob();
@@ -125,7 +129,7 @@ describe("Job detail page", () => {
     await fireEvent.click(screen.getByRole("button", { name: /Отменить задачу/i }));
 
     await waitFor(() => {
-      expect(mockPost).toHaveBeenCalledWith("/api/jobs/1/cancel");
+      expect(cancelJob).toHaveBeenCalledWith(1);
     });
   });
 
@@ -344,5 +348,81 @@ describe("Job detail page — dual-layout (regression for #89)", () => {
     const cardsSections = container.querySelectorAll("div.space-y-3.sm\\:hidden");
     expect(cardsSections.length).toBe(1);
     expect(cardsSections[0].classList.contains("sm:hidden")).toBe(true);
+  });
+});
+
+describe("Jobs list page — inline cancel button", () => {
+  it("renders Cancel button for running job", () => {
+    const channels = [makeChannel()];
+    const jobs = [makeJob({ id: 1, status: "running" })];
+    render(JobsPage, {
+      props: { data: { jobs, total: 1, channels } },
+    });
+
+    expect(screen.getAllByRole("button", { name: /Отменить/i }).length).toBe(2);
+  });
+
+  it("renders Cancel button for pending job", () => {
+    const channels = [makeChannel()];
+    const jobs = [makeJob({ id: 1, status: "pending" })];
+    render(JobsPage, {
+      props: { data: { jobs, total: 1, channels } },
+    });
+
+    expect(screen.getAllByRole("button", { name: /Отменить/i }).length).toBe(2);
+  });
+
+  it("does not render Cancel button for terminal statuses", () => {
+    const channels = [makeChannel()];
+    for (const status of ["done", "failed", "cancelled"] as const) {
+      const jobs = [makeJob({ id: 1, status })];
+      render(JobsPage, {
+        props: { data: { jobs, total: 1, channels } },
+      });
+
+      expect(screen.queryAllByRole("button", { name: /Отменить/i }).length).toBe(0);
+      cleanup();
+    }
+  });
+
+  it("calls cancelJob and refresh when Cancel is clicked", async () => {
+    const channels = [makeChannel()];
+    const jobs = [makeJob({ id: 1, status: "running" })];
+    mockCancelJob.mockResolvedValue(undefined);
+    mockGet.mockResolvedValue({ jobs, total: 1 });
+
+    render(JobsPage, {
+      props: { data: { jobs, total: 1, channels } },
+    });
+
+    await fireEvent.click(screen.getAllByRole("button", { name: /Отменить/i })[0]);
+
+    await waitFor(() => {
+      expect(cancelJob).toHaveBeenCalledWith(1);
+    });
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith("/api/jobs", { limit: 20, offset: 0 });
+    });
+  });
+
+  it("handles 409 from cancelJob gracefully (refreshes, no crash)", async () => {
+    const channels = [makeChannel()];
+    const jobs = [makeJob({ id: 1, status: "running" })];
+    mockCancelJob.mockRejectedValue(new ApiError(409, null, "already terminal"));
+    mockGet.mockResolvedValue({ jobs, total: 1 });
+
+    render(JobsPage, {
+      props: { data: { jobs, total: 1, channels } },
+    });
+
+    await fireEvent.click(screen.getAllByRole("button", { name: /Отменить/i })[0]);
+
+    await waitFor(() => {
+      expect(cancelJob).toHaveBeenCalledWith(1);
+    });
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith("/api/jobs", { limit: 20, offset: 0 });
+    });
+    expect(screen.queryByText(/Не удалось отменить/i)).toBeNull();
   });
 });
