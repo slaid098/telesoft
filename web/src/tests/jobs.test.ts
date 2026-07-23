@@ -234,3 +234,43 @@ describe("Jobs list page — pagination", () => {
     });
   });
 });
+
+describe("Jobs list page — dual-layout (regression for #89)", () => {
+  it("table wrapper is hidden on mobile and visible on >=sm, cards are hidden on >=sm", () => {
+    const channels = [makeChannel()];
+    const jobs = [makeJob({ id: 1, status: "done" })];
+    const { container } = render(JobsPage, {
+      props: { data: { jobs, total: 1, channels } },
+    });
+
+    const tables = container.querySelectorAll("table");
+    expect(tables.length).toBe(1);
+    const tableWrapper = tables[0].closest("div") ?? tables[0].parentElement;
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper?.classList.contains("hidden")).toBe(true);
+    expect(tableWrapper?.classList.contains("sm:block")).toBe(true);
+
+    const cardsSections = container.querySelectorAll("div.space-y-3.sm\\:hidden");
+    expect(cardsSections.length).toBe(1);
+    expect(cardsSections[0].classList.contains("sm:hidden")).toBe(true);
+  });
+});
+
+describe("Job detail page — dual-layout (regression for #89)", () => {
+  it("logs table wrapper is hidden on mobile and visible on >=sm, cards are hidden on >=sm", () => {
+    const job = makeJob();
+    const logs = [makeLog()];
+    const { container } = render(JobDetailPage, { props: { data: { job, logs } } });
+
+    const tables = container.querySelectorAll("table");
+    expect(tables.length).toBe(1);
+    const tableWrapper = tables[0].closest("div") ?? tables[0].parentElement;
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper?.classList.contains("hidden")).toBe(true);
+    expect(tableWrapper?.classList.contains("sm:block")).toBe(true);
+
+    const cardsSections = container.querySelectorAll("div.space-y-3.sm\\:hidden");
+    expect(cardsSections.length).toBe(1);
+    expect(cardsSections[0].classList.contains("sm:hidden")).toBe(true);
+  });
+});

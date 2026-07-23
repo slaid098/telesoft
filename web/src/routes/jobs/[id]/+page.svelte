@@ -198,7 +198,7 @@ async function handleCancel() {
         Логов пока нет — они появляются по мере выполнения задачи
       </div>
     {:else}
-      <div class="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
+      <div class="hidden overflow-x-auto rounded-lg border border-slate-800 bg-slate-900 sm:block">
         <table class="min-w-full divide-y divide-slate-800 text-sm">
           <thead class="text-xs text-slate-400">
             <tr>
