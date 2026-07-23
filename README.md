@@ -249,7 +249,6 @@ docker compose up --build -d
 ## Ограничения
 
 - **Бот не листает историю канала** → пользователь даёт ссылку на последний пост (`post_link`) + количество (`limit`). telesoft fetching посты по message id начиная с `post_link`.
-- **Нет редактирования канала в UI** (PATCH endpoint в бэкенде есть, UI не реализован)
 - **Нет retry/delete задач в UI** (cancel есть — `POST /api/jobs/{id}/cancel`; retry/delete pending)
 
 ## Лицензия

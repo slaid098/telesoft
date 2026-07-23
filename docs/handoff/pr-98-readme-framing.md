@@ -61,7 +61,7 @@ created: 2026-07-23
 ## Pending
 
 - Нет. Все 3 правки issue #97 внесены.
-- ADR не нужен — docs framing, не архитектурное решение.
+- ADR создан: `docs/decisions/2026-07-23-pr-98-readme-framing.md`
 
 ## Watch out
 
