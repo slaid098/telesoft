@@ -235,6 +235,78 @@ describe("Jobs list page — pagination", () => {
   });
 });
 
+describe("Jobs list page — server-side status filter", () => {
+  function makePageJobs(count: number, startId = 1): Job[] {
+    return Array.from({ length: count }, (_, i) => makeJob({ id: startId + i, status: "done" }));
+  }
+
+  it("does not send status query param when filter is 'all'", async () => {
+    const channels = [makeChannel()];
+    const jobs = makePageJobs(5);
+    mockGet.mockResolvedValue({ jobs, total: 5 });
+
+    render(JobsPage, {
+      props: { data: { jobs, total: 5, channels } },
+    });
+
+    await fireEvent.change(screen.getByLabelText(/Статус/i), { target: { value: "all" } });
+
+    await waitFor(() => {
+      const lastCall = mockGet.mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe("/api/jobs");
+      expect(lastCall?.[1]).not.toHaveProperty("status");
+    });
+  });
+
+  it("resets to page 1 and sends status query param when filter changes", async () => {
+    const channels = [makeChannel()];
+    const page1Jobs = makePageJobs(20);
+    const page2Jobs = makePageJobs(20, 21);
+    mockGet.mockResolvedValue({ jobs: page2Jobs, total: 40 });
+
+    render(JobsPage, {
+      props: { data: { jobs: page1Jobs, total: 40, channels } },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "След. ›" }));
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith("/api/jobs", { limit: 20, offset: 20 });
+    });
+
+    const filteredJobs = makePageJobs(3).map((j) => ({ ...j, status: "running" as const }));
+    mockGet.mockResolvedValue({ jobs: filteredJobs, total: 3 });
+
+    await fireEvent.change(screen.getByLabelText(/Статус/i), { target: { value: "running" } });
+
+    await waitFor(() => {
+      const lastCall = mockGet.mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe("/api/jobs");
+      expect(lastCall?.[1]).toEqual({ limit: 20, offset: 0, status: "running" });
+    });
+  });
+
+  it("renders jobs from API response directly (no client-side filter)", async () => {
+    const channels = [makeChannel()];
+    const initialJobs = makePageJobs(5);
+    const apiJobs = [
+      makeJob({ id: 100, status: "running" }),
+      makeJob({ id: 101, status: "running" }),
+    ];
+    mockGet.mockResolvedValue({ jobs: apiJobs, total: 2 });
+
+    render(JobsPage, {
+      props: { data: { jobs: initialJobs, total: 5, channels } },
+    });
+
+    await fireEvent.change(screen.getByLabelText(/Статус/i), { target: { value: "running" } });
+
+    await waitFor(() => {
+      expect(screen.getAllByText("#100").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("#101").length).toBeGreaterThan(0);
+    });
+  });
+});
+
 describe("Jobs list page — dual-layout (regression for #89)", () => {
   it("table wrapper is hidden on mobile and visible on >=sm, cards are hidden on >=sm", () => {
     const channels = [makeChannel()];

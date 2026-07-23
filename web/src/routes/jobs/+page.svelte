@@ -20,10 +20,6 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 const total = $derived.by<number>(() => localTotal ?? data.total);
 const jobs = $derived.by<Job[]>(() => localRefresh ?? data.jobs);
 
-const filteredJobs = $derived(
-  statusFilter === "all" ? jobs : jobs.filter((j) => j.status === statusFilter),
-);
-
 const totalPages = $derived(total <= 0 ? 1 : Math.ceil(total / pageSize));
 
 const hasRunning = $derived(jobs.some((j) => j.status === "running" || j.status === "pending"));
@@ -69,6 +65,11 @@ async function goToPage(next: number) {
   await refresh();
 }
 
+async function onStatusFilterChange() {
+  page = 1;
+  await refresh();
+}
+
 $effect(() => {
   if (!hasRunning) {
     if (pollTimer) {
@@ -98,6 +99,7 @@ $effect(() => {
       <select
         id="job-status-filter"
         bind:value={statusFilter}
+        onchange={onStatusFilterChange}
         class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       >
         <option value="all">все</option>
@@ -131,7 +133,7 @@ $effect(() => {
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800">
-        {#each filteredJobs as job (job.id)}
+        {#each jobs as job (job.id)}
           <tr class="hover:bg-slate-800/40">
             <td class="px-3 py-2 font-medium text-white">
               <a href={`/jobs/${job.id}`} class="hover:text-brand-400">#{job.id}</a>
@@ -162,7 +164,7 @@ $effect(() => {
   </div>
 
   <div class="space-y-3 sm:hidden">
-    {#each filteredJobs as job (job.id)}
+    {#each jobs as job (job.id)}
       <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
         <div class="flex items-center justify-between gap-2">
           <a
