@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 96
 issue: 95
 branch: feat/channels/action-menu
 status: ready
 created: 2026-07-23
 ---
 
-# Handoff — PR <PR-NUMBER>: channels action menu + edit + is_active toggle
+# Handoff — PR 96: channels action menu + edit + is_active toggle
 
 ## Что сделано
 
@@ -127,7 +127,7 @@ Action menu решает все 3 + скалируется для будущих
 ## Pending
 
 - Нет. Все 9 пунктов issue #95 реализованы.
-- ADR создан: `docs/decisions/2026-07-23-pr-<PR-NUMBER>-channels-action-menu.md`
+- ADR создан: `docs/decisions/2026-07-23-pr-96-channels-action-menu.md`
   (action menu + модалки вместо клика по названию — архитектурное решение).
 
 ## Watch out

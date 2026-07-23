@@ -1,13 +1,13 @@
 ---
-adr: <PR-NUMBER>
+adr: 96
 title: Channels action menu + edit + is_active toggle
 status: Accepted
 date: 2026-07-23
-pr: <PR-NUMBER>
+pr: 96
 issue: 95
 ---
 
-# ADR PR#<PR-NUMBER> — Channels action menu + edit + is_active toggle
+# ADR PR#96 — Channels action menu + edit + is_active toggle
 
 ## Статус
 
