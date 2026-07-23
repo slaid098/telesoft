@@ -1,5 +1,5 @@
 <script lang="ts">
-import { api } from "$lib/api";
+import { api, cancelJob } from "$lib/api";
 import type { Job, Log, LogListResponse, WsEventPayload } from "$lib/types";
 import { JOB_STATUS_LABELS } from "$lib/types";
 import { WebSocketClient, type WsMessage } from "$lib/ws";
@@ -99,7 +99,7 @@ async function handleCancel() {
   cancelling = true;
   cancelError = null;
   try {
-    await api.post<{ job_id: number; status: string }>(`/api/jobs/${job.id}/cancel`);
+    await cancelJob(job.id);
     await refetchJob();
   } catch (err) {
     cancelError = err instanceof Error ? err.message : "Не удалось отменить";
