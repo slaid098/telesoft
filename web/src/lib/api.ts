@@ -129,3 +129,7 @@ export async function replaceLink(
 ): Promise<{ job_id: number }> {
   return api.post<{ job_id: number }>(`/api/channels/${channelId}/replace-link`, payload);
 }
+
+export async function cancelJob(id: number): Promise<void> {
+  await api.post<void>(`/api/jobs/${id}/cancel`);
+}

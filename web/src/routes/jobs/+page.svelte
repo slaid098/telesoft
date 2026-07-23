@@ -1,5 +1,5 @@
 <script lang="ts">
-import { api } from "$lib/api";
+import { ApiError, api, cancelJob } from "$lib/api";
 import type { Channel, Job, JobListResponse, JobStatus } from "$lib/types";
 import { JOB_STATUSES, JOB_STATUS_LABELS } from "$lib/types";
 
@@ -15,6 +15,7 @@ let statusFilter = $state<JobStatus | "all">("all");
 let localRefresh = $state<Job[] | null>(null);
 let localTotal = $state<number | null>(null);
 let error = $state<string | null>(null);
+let cancelling = $state<number | null>(null);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const total = $derived.by<number>(() => localTotal ?? data.total);
@@ -56,6 +57,26 @@ async function refresh() {
     localTotal = resp.total;
   } catch (err) {
     error = err instanceof Error ? err.message : "Не удалось обновить";
+  }
+}
+
+function isStoppable(status: Job["status"]): boolean {
+  return status === "running" || status === "pending";
+}
+
+async function handleCancel(jobId: number) {
+  cancelling = jobId;
+  try {
+    await cancelJob(jobId);
+    await refresh();
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      await refresh();
+    } else {
+      error = err instanceof Error ? err.message : "Не удалось отменить";
+    }
+  } finally {
+    cancelling = null;
   }
 }
 
@@ -130,6 +151,7 @@ $effect(() => {
           <th class="px-3 py-2 text-left font-medium">Статус</th>
           <th class="px-3 py-2 text-left font-medium">Прогресс</th>
           <th class="px-3 py-2 text-left font-medium">Создан</th>
+          <th class="px-3 py-2 text-left font-medium">Действия</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-800">
@@ -153,10 +175,22 @@ $effect(() => {
             </td>
             <td class="px-3 py-2 text-slate-300">{job.edited}/{job.total}</td>
             <td class="px-3 py-2 text-slate-300">{job.created_at}</td>
+            <td class="px-3 py-2">
+              {#if isStoppable(job.status)}
+                <button
+                  type="button"
+                  onclick={() => handleCancel(job.id)}
+                  disabled={cancelling === job.id}
+                  class="rounded-md bg-red-700 px-2 py-1 text-xs font-medium text-white hover:bg-red-600 disabled:opacity-60"
+                >
+                  {cancelling === job.id ? "…" : "Отменить"}
+                </button>
+              {/if}
+            </td>
           </tr>
         {:else}
           <tr>
-            <td colspan="6" class="px-3 py-8 text-center text-slate-400">Нет задач</td>
+            <td colspan="7" class="px-3 py-8 text-center text-slate-400">Нет задач</td>
           </tr>
         {/each}
       </tbody>
@@ -199,6 +233,16 @@ $effect(() => {
             <dd>{job.created_at}</dd>
           </div>
         </dl>
+        {#if isStoppable(job.status)}
+          <button
+            type="button"
+            onclick={() => handleCancel(job.id)}
+            disabled={cancelling === job.id}
+            class="mt-2 rounded-md bg-red-700 px-2 py-1 text-xs font-medium text-white hover:bg-red-600 disabled:opacity-60"
+          >
+            {cancelling === job.id ? "…" : "Отменить"}
+          </button>
+        {/if}
       </div>
     {:else}
       <div class="rounded-lg border border-slate-800 bg-slate-900 p-4 text-center text-sm text-slate-400">
