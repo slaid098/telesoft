@@ -287,6 +287,63 @@ describe("Channels page", () => {
   });
 });
 
+describe("Channels page — filter select", () => {
+  it("renders filter select with two options", () => {
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+    const select = screen.getByLabelText(/Фильтр/i) as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    const options = Array.from(select.options).map((o) => o.value);
+    expect(options).toEqual(["active", "all"]);
+    expect(screen.getByText("Только активные")).toBeTruthy();
+    expect(screen.getByText("Все каналы")).toBeTruthy();
+  });
+
+  it("calls listChannels with show_inactive=true when filter changes to 'all'", async () => {
+    mockGet.mockResolvedValue({ channels: [], total: 0 });
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+
+    const select = screen.getByLabelText(/Фильтр/i) as HTMLSelectElement;
+    await fireEvent.change(select, { target: { value: "all" } });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it("calls listChannels with show_inactive=false when filter changes back to 'active'", async () => {
+    mockGet.mockResolvedValue({ channels: [], total: 0 });
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+
+    const select = screen.getByLabelText(/Фильтр/i) as HTMLSelectElement;
+    await fireEvent.change(select, { target: { value: "all" } });
+    await fireEvent.change(select, { target: { value: "active" } });
+
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  it("hides filter select when Add channel form is open", async () => {
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+    expect(screen.getByLabelText(/Фильтр/i)).toBeTruthy();
+
+    await fireEvent.click(screen.getByRole("button", { name: /Добавить канал/i }));
+
+    expect(screen.queryByLabelText(/Фильтр/i)).toBeNull();
+    expect(screen.getByLabelText(/Telegram ID/i)).toBeTruthy();
+  });
+
+  it("shows filter select again when Add channel form is closed", async () => {
+    render(ChannelsPage, { props: { data: { channels: [], total: 0 } } });
+    await fireEvent.click(screen.getByRole("button", { name: /Добавить канал/i }));
+    expect(screen.queryByLabelText(/Фильтр/i)).toBeNull();
+
+    await fireEvent.click(screen.getByRole("button", { name: /Отмена/i }));
+
+    expect(screen.getByLabelText(/Фильтр/i)).toBeTruthy();
+  });
+});
+
 describe("ActionMenu", () => {
   it("shows Activate label for inactive channel", async () => {
     const channel = makeChannel({ id: 1, is_active: false });

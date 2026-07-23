@@ -13,7 +13,7 @@ let error = $state<string | null>(null);
 let busy = $state(false);
 let localRefresh = $state<Channel[] | null>(null);
 let showForm = $state(false);
-let showInactive = $state(false);
+let channelFilter = $state<"active" | "all">("active");
 let replaceChannel = $state<Channel | null>(null);
 let editChannel = $state<Channel | null>(null);
 
@@ -21,7 +21,7 @@ const channels = $derived.by<Channel[]>(() => localRefresh ?? data.channels);
 
 async function reload() {
   try {
-    const resp = await listChannels(showInactive);
+    const resp = await listChannels(channelFilter === "all");
     localRefresh = resp.channels;
   } catch (err) {
     error = err instanceof ApiError ? err.message : "Не удалось перезагрузить";
@@ -61,8 +61,7 @@ function handleSaved(_channel: Channel) {
   void reload();
 }
 
-async function toggleShowInactive() {
-  showInactive = !showInactive;
+async function onFilterChange() {
   await reload();
 }
 </script>
@@ -71,17 +70,20 @@ async function toggleShowInactive() {
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h1 class="text-2xl font-semibold text-white">Каналы</h1>
     <div class="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onclick={toggleShowInactive}
-        class={`rounded-md border px-3 py-2 text-sm font-medium ${
-          showInactive
-            ? "border-brand-500 bg-brand-600 text-white"
-            : "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
-        }`}
-      >
-        {showInactive ? "Все каналы" : "Только активные"}
-      </button>
+      {#if !showForm}
+        <div class="flex items-center gap-2">
+          <label for="channel-filter" class="text-xs text-slate-400">Фильтр</label>
+          <select
+            id="channel-filter"
+            bind:value={channelFilter}
+            onchange={onFilterChange}
+            class="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          >
+            <option value="active">Только активные</option>
+            <option value="all">Все каналы</option>
+          </select>
+        </div>
+      {/if}
       <button
         type="button"
         onclick={() => (showForm = !showForm)}
