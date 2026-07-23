@@ -13,7 +13,7 @@ key_files:
   - AGENTS.md — repo-level agent instructions
   - .pre-commit-config.yaml — ruff + mypy hooks
 dependencies: []
-last_updated: 2026-07-23 (PR#96)
+last_updated: 2026-07-23 (PR#98)
 ---
 
 # telesoft — Project Map
@@ -133,6 +133,7 @@ telesoft/
 - [PR#86 — link_preview configurable + preview-confirm-run workflow](../decisions/2026-07-22-pr-86-preview-ux.md)
 - [PR#88 — rewrite README in Russian](../decisions/2026-07-22-pr-88-rewrite-readme-ru.md)
 - [PR#96 — channels action menu + edit + is_active toggle](../decisions/2026-07-23-pr-96-channels-action-menu.md)
+- [PR#98 — README framing — link replacement as one feature](../decisions/2026-07-23-pr-98-readme-framing.md)
 
 ### Handoffs (`docs/handoff/`)
 
@@ -160,3 +161,4 @@ telesoft/
 - [PR#86 — link_preview configurable + preview-confirm-run workflow](../handoff/pr-86-preview-ux.md)
 - [PR#88 — rewrite README in Russian](../handoff/pr-88-rewrite-readme-ru.md)
 - [PR#96 — channels action menu + edit + is_active toggle](../handoff/pr-96-channels-action-menu.md)
+- [PR#98 — README framing — link replacement as one feature](../handoff/pr-98-readme-framing.md)
