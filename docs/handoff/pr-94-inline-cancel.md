@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 94
 issue: 93
 branch: feat/jobs/inline-cancel
 status: ready
 created: 2026-07-23
 ---
 
-# Handoff — PR <PR-NUMBER>: inline cancel button on jobs list
+# Handoff — PR 94: inline cancel button on jobs list
 
 ## Что сделано
 
