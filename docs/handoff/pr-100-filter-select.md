@@ -1,12 +1,12 @@
 ---
-pr: PLACEHOLDER
+pr: 100
 issue: 99
 branch: fix/channels/filter-select
 status: ready
 created: 2026-07-23
 ---
 
-# Handoff — PR PLACEHOLDER: replace channels filter toggle with select dropdown
+# Handoff — PR 100: replace channels filter toggle with select dropdown
 
 ## Что сделано
 
