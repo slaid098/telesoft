@@ -1,6 +1,9 @@
 import { browser } from "$app/environment";
 import { goto } from "$app/navigation";
 import type {
+  Channel,
+  ChannelListResponse,
+  ChannelUpdate,
   PatternCreateRequest,
   PatternListResponse,
   PatternResponse,
@@ -132,4 +135,18 @@ export async function replaceLink(
 
 export async function cancelJob(id: number): Promise<void> {
   await api.post<void>(`/api/jobs/${id}/cancel`);
+}
+
+export async function listChannels(showInactive?: boolean): Promise<ChannelListResponse> {
+  const query: Record<string, QueryValue> = {};
+  if (showInactive !== undefined) query.show_inactive = showInactive;
+  return api.get<ChannelListResponse>("/api/channels", query);
+}
+
+export async function updateChannel(id: number, payload: ChannelUpdate): Promise<Channel> {
+  return api.patch<Channel>(`/api/channels/${id}`, payload);
+}
+
+export async function toggleChannelActive(id: number, active: boolean): Promise<void> {
+  await api.patch<void>(`/api/channels/${id}`, { is_active: active });
 }

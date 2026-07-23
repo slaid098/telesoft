@@ -1,6 +1,9 @@
 <script lang="ts">
-import { ApiError, api } from "$lib/api";
+import { ApiError, api, listChannels, toggleChannelActive } from "$lib/api";
+import ActionMenu from "$lib/components/ActionMenu.svelte";
 import ChannelForm from "$lib/components/ChannelForm.svelte";
+import EditChannelModal from "$lib/components/EditChannelModal.svelte";
+import ReplaceLinkModal from "$lib/components/ReplaceLinkModal.svelte";
 import type { Channel } from "$lib/types";
 
 type Props = { data: { channels: Channel[]; total: number } };
@@ -10,13 +13,16 @@ let error = $state<string | null>(null);
 let busy = $state(false);
 let localRefresh = $state<Channel[] | null>(null);
 let showForm = $state(false);
+let showInactive = $state(false);
+let replaceChannel = $state<Channel | null>(null);
+let editChannel = $state<Channel | null>(null);
 
 const channels = $derived.by<Channel[]>(() => localRefresh ?? data.channels);
 
 async function reload() {
   try {
-    const data = await api.get<{ channels: Channel[]; total: number }>("/api/channels");
-    localRefresh = data.channels;
+    const resp = await listChannels(showInactive);
+    localRefresh = resp.channels;
   } catch (err) {
     error = err instanceof ApiError ? err.message : "Не удалось перезагрузить";
   }
@@ -25,6 +31,7 @@ async function reload() {
 async function deleteChannel(channel: Channel) {
   if (!confirm(`Удалить канал «${channel.title}»?`)) return;
   busy = true;
+  error = null;
   try {
     await api.del(`/api/channels/${channel.id}`);
     await reload();
@@ -35,22 +42,54 @@ async function deleteChannel(channel: Channel) {
   }
 }
 
+async function handleToggleActive(channel: Channel) {
+  busy = true;
+  error = null;
+  try {
+    await toggleChannelActive(channel.id, !channel.is_active);
+    await reload();
+  } catch (err) {
+    error = err instanceof ApiError ? err.message : "Не удалось изменить статус";
+  } finally {
+    busy = false;
+  }
+}
+
 function handleSaved(_channel: Channel) {
   showForm = false;
+  editChannel = null;
   void reload();
+}
+
+async function toggleShowInactive() {
+  showInactive = !showInactive;
+  await reload();
 }
 </script>
 
 <div class="space-y-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h1 class="text-2xl font-semibold text-white">Каналы</h1>
-    <button
-      type="button"
-      onclick={() => (showForm = !showForm)}
-      class="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-    >
-      {showForm ? "Закрыть" : "Добавить канал"}
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onclick={toggleShowInactive}
+        class={`rounded-md border px-3 py-2 text-sm font-medium ${
+          showInactive
+            ? "border-brand-500 bg-brand-600 text-white"
+            : "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+        }`}
+      >
+        {showInactive ? "Все каналы" : "Только активные"}
+      </button>
+      <button
+        type="button"
+        onclick={() => (showForm = !showForm)}
+        class="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+      >
+        {showForm ? "Закрыть" : "Добавить канал"}
+      </button>
+    </div>
   </div>
 
   {#if showForm}
@@ -78,7 +117,7 @@ function handleSaved(_channel: Channel) {
       </thead>
       <tbody class="divide-y divide-slate-800">
         {#each channels as ch (ch.id)}
-          <tr class="hover:bg-slate-800/40">
+          <tr class={`hover:bg-slate-800/40 ${ch.is_active ? "" : "opacity-60"}`}>
             <td class="px-3 py-2 font-medium text-white">
               <a href={`/channels/${ch.id}`} class="hover:text-brand-400">{ch.title}</a>
             </td>
@@ -96,14 +135,13 @@ function handleSaved(_channel: Channel) {
               {/if}
             </td>
             <td class="px-3 py-2 text-right">
-              <button
-                type="button"
-                onclick={() => deleteChannel(ch)}
-                disabled={busy}
-                class="rounded-md bg-red-900 px-2 py-1 text-xs text-red-100 hover:bg-red-800 disabled:opacity-60"
-              >
-                Удалить
-              </button>
+              <ActionMenu
+                channel={ch}
+                onReplace={() => (replaceChannel = ch)}
+                onEdit={() => (editChannel = ch)}
+                onToggleActive={() => handleToggleActive(ch)}
+                onDelete={() => deleteChannel(ch)}
+              />
             </td>
           </tr>
         {:else}
@@ -117,7 +155,7 @@ function handleSaved(_channel: Channel) {
 
   <div class="space-y-3 sm:hidden">
     {#each channels as ch (ch.id)}
-      <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+      <div class={`rounded-lg border border-slate-800 bg-slate-900 p-3 ${ch.is_active ? "" : "opacity-60"}`}>
         <div class="flex items-start justify-between gap-2">
           <a
             href={`/channels/${ch.id}`}
@@ -145,21 +183,20 @@ function handleSaved(_channel: Channel) {
             <dd>{ch.username ?? "—"}</dd>
           </div>
         </dl>
-        <div class="mt-3 flex justify-end gap-2">
+        <div class="mt-3 flex items-center justify-between gap-2">
           <a
             href={`/channels/${ch.id}`}
             class="rounded-md bg-brand-600 px-2 py-1 text-xs text-white hover:bg-brand-700"
           >
             Открыть
           </a>
-          <button
-            type="button"
-            onclick={() => deleteChannel(ch)}
-            disabled={busy}
-            class="rounded-md bg-red-900 px-2 py-1 text-xs text-red-100 hover:bg-red-800 disabled:opacity-60"
-          >
-            Удалить
-          </button>
+          <ActionMenu
+            channel={ch}
+            onReplace={() => (replaceChannel = ch)}
+            onEdit={() => (editChannel = ch)}
+            onToggleActive={() => handleToggleActive(ch)}
+            onDelete={() => deleteChannel(ch)}
+          />
         </div>
       </div>
     {:else}
@@ -169,3 +206,15 @@ function handleSaved(_channel: Channel) {
     {/each}
   </div>
 </div>
+
+{#if replaceChannel}
+  <ReplaceLinkModal channelId={replaceChannel.id} onClose={() => (replaceChannel = null)} />
+{/if}
+
+{#if editChannel}
+  <EditChannelModal
+    channel={editChannel}
+    onSaved={handleSaved}
+    onClose={() => (editChannel = null)}
+  />
+{/if}

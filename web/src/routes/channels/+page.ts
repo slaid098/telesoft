@@ -1,4 +1,4 @@
-import { api } from "$lib/api";
+import { listChannels } from "$lib/api";
 import type { ChannelListResponse } from "$lib/types";
 import { error } from "@sveltejs/kit";
 
@@ -9,7 +9,7 @@ export const ssr = false;
 
 export const load: PageLoad = async () => {
   try {
-    const data = await api.get<ChannelListResponse>("/api/channels");
+    const data = await listChannels(false);
     return { channels: data.channels, total: data.total };
   } catch (err) {
     const status =
