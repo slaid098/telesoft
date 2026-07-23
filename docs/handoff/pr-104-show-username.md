@@ -1,12 +1,12 @@
 ---
-pr: <PR-NUMBER>
+pr: 104
 issue: 103
 branch: fix/layout/show-username-mobile
 status: ready
 created: 2026-07-23
 ---
 
-# Handoff — PR <PR-NUMBER>: show username on all devices
+# Handoff — PR 104: show username on all devices
 
 ## Что сделано
 
