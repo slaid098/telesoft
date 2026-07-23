@@ -57,7 +57,7 @@ async function handleLogout() {
         </div>
         <div class="flex items-center gap-3">
           {#if username}
-            <span class="hidden text-xs text-slate-400 sm:block">
+            <span class="whitespace-nowrap text-xs text-slate-400">
               Вы вошли как <span class="text-slate-200">{username}</span>
             </span>
           {/if}
