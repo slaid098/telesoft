@@ -185,13 +185,7 @@ async function onFilterChange() {
             <dd>{ch.username ?? "—"}</dd>
           </div>
         </dl>
-        <div class="mt-3 flex items-center justify-between gap-2">
-          <a
-            href={`/channels/${ch.id}`}
-            class="rounded-md bg-brand-600 px-2 py-1 text-xs text-white hover:bg-brand-700"
-          >
-            Открыть
-          </a>
+        <div class="mt-3 flex items-center justify-end gap-2">
           <ActionMenu
             channel={ch}
             onReplace={() => (replaceChannel = ch)}
