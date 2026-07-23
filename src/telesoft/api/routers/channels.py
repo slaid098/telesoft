@@ -40,8 +40,21 @@ async def _get_channel_or_404(
 
 
 @router.get("", response_model=ChannelListResponse)
-async def list_channels_endpoint(active_only: bool = False) -> ChannelListResponse:
-    """List channels, optionally filtered to active ones."""
+async def list_channels_endpoint(
+    active_only: bool = False,
+    show_inactive: bool | None = None,
+) -> ChannelListResponse:
+    """List channels, optionally filtered to active ones.
+
+    ``show_inactive`` is a convenience alias: when ``True`` it forces all
+    channels (active + inactive) regardless of ``active_only``. When
+    ``False`` it forces active-only. When unset (default) ``active_only``
+    controls the filter.
+    """
+    if show_inactive is True:
+        active_only = False
+    elif show_inactive is False:
+        active_only = True
     async with get_db() as db:
         rows = await channel_model.list_channels(db, active_only=active_only)
     channels = [ChannelResponse.from_row(row) for row in rows]

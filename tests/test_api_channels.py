@@ -67,6 +67,34 @@ def test_list_channels_active_only(authed_client: TestClient) -> None:
     assert ids == {a["id"], b["id"]}
 
 
+def test_list_channels_show_inactive_true_returns_inactive(authed_client: TestClient) -> None:
+    """``?show_inactive=true`` returns both active and inactive channels."""
+    a = _create_channel(authed_client, telegram_id=10, title="active")
+    b = _create_channel(authed_client, telegram_id=11, title="inactive")
+    authed_client.patch(f"/api/channels/{b['id']}", json={"is_active": False})
+    response = authed_client.get("/api/channels", params={"show_inactive": "true"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 2
+    ids = {ch["id"] for ch in body["channels"]}
+    assert ids == {a["id"], b["id"]}
+
+
+def test_list_channels_show_inactive_false_excludes_inactive(
+    authed_client: TestClient,
+) -> None:
+    """``?show_inactive=false`` returns only active channels (excludes inactive)."""
+    a = _create_channel(authed_client, telegram_id=20, title="active")
+    b = _create_channel(authed_client, telegram_id=21, title="inactive")
+    authed_client.patch(f"/api/channels/{b['id']}", json={"is_active": False})
+    response = authed_client.get("/api/channels", params={"show_inactive": "false"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    ids = {ch["id"] for ch in body["channels"]}
+    assert ids == {a["id"]}
+
+
 def test_create_channel_success(authed_client: TestClient) -> None:
     response = authed_client.post(
         "/api/channels",
