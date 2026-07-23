@@ -1,12 +1,12 @@
 ---
-pr: PR_NUMBER
+pr: 98
 issue: 97
 branch: docs/repo/readme-framing
 status: ready
 created: 2026-07-23
 ---
 
-# Handoff — PR PR_NUMBER: README framing — link replacement as one feature
+# Handoff — PR 98: README framing — link replacement as one feature
 
 ## Что сделано
 
